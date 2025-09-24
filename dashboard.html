@@ -1,0 +1,2492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bad Debts Dashboard</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(145deg, #66023c 0%, #cd1c18 100%);
+            min-height:80vh;
+            padding: 2px 8px 8px 8px;
+            overflow-y: auto; /* enable vertical scroll */
+            overflow-x: hidden;
+        }
+
+        .dashboard-container {
+            max-width: 100vw;
+            width: 100%;
+            height: auto;
+            margin: 0 auto;
+            padding: 5px 8px 15px 8px;
+            animation: slideIn 0.4s ease-out;
+            display: grid;
+            grid-template-rows: auto auto auto auto; /* header, KPIs, charts, trend */
+            gap: 8px;
+            box-sizing: border-box;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Header Section */
+        .header-section {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            gap: 8px;
+            height: 70px;
+            margin-bottom: 0px;
+        }
+
+        .date-filter-container {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 16px 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e6e6e6;
+            height: 56px;
+            flex: 1;
+            max-width: 65%;
+        }
+
+        .date-input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .date-input-group label {
+            font-weight: 600;
+            color: #333;
+            font-size: 13px;
+        }
+
+        .date-input-group input,
+        .date-input-group select {
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            background: white;
+            transition: all 0.3s ease;
+            height: 36px;
+            min-width: 250px;
+        }
+
+        .date-input-group input:focus,
+        .date-input-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .btn-3d {
+            padding: 12px 20px;
+            font-weight: 600;
+            font-size: 12px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Inter', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: relative;
+            transform-style: preserve-3d;
+            height: 44px;
+        }
+
+        .btn-export {
+            background: linear-gradient(145deg, #4a3aff, #6254ff);
+            color: white;
+            box-shadow: 
+                0 4px 0 #3027b3,
+                0 6px 12px rgba(74, 58, 255, 0.3);
+        }
+
+        .btn-export:hover {
+            transform: translateY(-1px);
+            box-shadow: 
+                0 5px 0 #3027b3,
+                0 8px 16px rgba(74, 58, 255, 0.4);
+        }
+
+        .btn-export:active {
+            transform: translateY(2px);
+            box-shadow: 
+                0 2px 0 #3027b3,
+                0 4px 8px rgba(74, 58, 255, 0.2);
+        }
+
+        .btn-refresh {
+            background: linear-gradient(145deg, #ffffff, #f0f0f0);
+            color: #333;
+            border: 1px solid #ddd;
+            box-shadow: 
+                0 4px 0 #c0c0c0,
+                0 6px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-refresh:hover {
+            transform: translateY(-1px);
+            background: linear-gradient(145deg, #f0f0f0, #e0e0e0);
+            box-shadow: 
+                0 5px 0 #c0c0c0,
+                0 8px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-refresh:active {
+            transform: translateY(2px);
+            box-shadow: 
+                0 2px 0 #c0c0c0,
+                0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+ /* START: Add these new styles to your CSS block */
+
+/* Modify the main stats container to be a flexbox for the groups */
+.stats-container {
+    display: flex;
+    flex-wrap: wrap; /* Allow groups to wrap on smaller screens */
+    gap: 16px;
+    height: auto;
+    padding: 0 4px;
+}
+
+/* Styling for each KPI group */
+.kpi-group {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    flex-grow: 1; /* Allow groups to grow and fill space */
+    min-width: 300px; /* Minimum width before wrapping */
+}
+
+.kpi-group-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* The grid container for the cards within a group */
+.kpi-group-cards {
+    display: grid;
+    gap: 12px;
+}
+
+/* Helper classes for different grid layouts */
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+.grid-5 { grid-template-columns: repeat(5, 1fr); }
+.grid-6 { grid-template-columns: repeat(6, 1fr); }
+
+.stat-card-filler {
+    background: transparent;
+    border: 2px dashed rgba(255, 255, 255, 0.3);
+    border-radius: 16px;
+    height: 85px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 8px;
+}
+
+/* Responsive adjustments for the new groups */
+@media (max-width: 1600px) {
+    .kpi-group-cards {
+        /* On smaller screens, allow card grids to become more compact */
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .stats-container {
+        flex-direction: column; /* Stack groups vertically on mobile */
+        gap: 12px;
+    }
+    .kpi-group {
+        min-width: 100%;
+    }
+    .kpi-group-cards {
+        /* Ensure mobile view has 2 cards per row for readability */
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .stat-card-filler {
+        display: none; /* Hide the filler card on mobile to save space */
+    }
+    .kpi-group-cards.grid-6 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.value-positive {
+    background: linear-gradient(45deg, #23a6d5, #23d5ab) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+}
+
+.value-negative {
+    background: linear-gradient(45deg, #e74c3c, #f39c12) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+}
+
+ /* END: New CSS styles */
+
+        .stat-card {
+            background: linear-gradient(145deg, #ffffff, #f6f6f6);
+            padding: 16px 12px;
+            border-radius: 16px;
+            text-align: center;
+            border: 2px solid #2f2f2f;
+            box-shadow:
+                0 4px 0 #2f2f2f,
+                0 6px 16px rgba(0, 0, 0, 0.12);
+            transition: all 0.2s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: visible;
+            height: 85px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-sizing: border-box;
+            z-index: 0; /* baseline to allow raised hover */
+        }
+
+        .stat-card:hover {
+            transform: translateY(-1px); /* remove scale to prevent flicker */
+            box-shadow: 
+                0 5px 0 #2f2f2f,
+                0 8px 16px rgba(0, 0, 0, 0.2);
+            z-index: 100; /* ensure hovered card (and tooltip) is above siblings */
+        }
+
+        .stat-card:active {
+            transform: translateY(1px);
+            box-shadow: 
+                0 2px 0 #2f2f2f,
+                0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-card h3 {
+            font-size: 10px;
+            color: #666;
+            margin-bottom: 4px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            line-height: 1.0;
+        }
+
+        .stat-card .value {
+            font-size: 24px;
+            font-weight: 800;
+            color: #333;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.05;
+            max-width: 100%;
+            white-space: nowrap;
+        }
+
+        /* Chart Containers */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* two charts per row */
+            height: auto;
+            overflow: visible;
+            padding: 8px 4px;
+        }
+
+        .charts-grid {
+            row-gap: 10px;   /* vertical space between chart rows */
+            column-gap: 10px; /* horizontal space between chart columns */
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.98);
+            padding: 20px;
+            border-radius: 16px;
+            border: 2px solid #2f2f2f;
+            box-shadow:
+                0 4px 0 #2f2f2f,
+                0 6px 20px rgba(0, 0, 0, 0.12);
+            height: 420px; /* larger view */
+            min-width: 20px;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: visible; /* allow tooltips to overflow */
+        }
+
+        /* Full width row for the progress chart */
+        .chart-container.full-row {
+            grid-column: 1 / -1;
+            height: 420px; /* Taller to fit per-center progress bars */
+        }
+
+        .chart-container:hover {
+            transform: translateY(-1px);
+            box-shadow: 
+                0 4px 0 #2f2f2f,
+                0 6px 14px rgba(0, 0, 0, 0.18);
+        }
+
+        .chart-container h4 {
+            font-size: 14px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 12px;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .chart-canvas {
+            position: relative;
+            height: calc(100% - 50px);
+            min-height: 130px;
+        }
+
+        /* removed trend line chart styles */
+
+        /* Expand button */
+        .expand-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 10px;
+            padding: 6px 8px;
+            border-radius: 8px;
+            border: 1px solid #2f2f2f;
+            background: linear-gradient(145deg, #ffffff, #f0f0f0);
+            box-shadow: 0 2px 0 #2f2f2f;
+            cursor: pointer;
+            z-index: 100;
+            opacity: 0.9;
+        }
+        
+        .expand-btn:hover {
+            opacity: 1;
+            transform: translateY(-1px);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            overflow: hidden;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-content {
+            width: 90vw;
+            height: 90vh;
+            background: #fff;
+            border-radius: 16px;
+            border: 2px solid #2f2f2f;
+            box-shadow: 0 16px 50px rgba(0,0,0,0.35);
+            position: relative;
+            padding: 10px;
+            overflow: hidden;
+        }
+        .modal-close {
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            background: #111;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 6px 10px;
+            cursor: pointer;
+        }
+
+        /* Loading Animation */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .kpi-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(0,0,0,0.15);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        /* Tooltip Styles */
+.tooltip-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px; /* Space between title and icon */
+}
+
+.tooltip-icon {
+    display: inline-block;
+    cursor: help;
+    color: #888;
+    font-size: 14px;
+    position: relative;
+}
+
+.tooltip-icon::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 125%; /* Position above the icon */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.4;
+    white-space: nowrap;
+    z-index: 10000;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+    width: max-content;
+    max-width: 250px;
+    white-space: normal;
+    text-align: left;
+}
+
+.tooltip-container:hover .tooltip-icon::before {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* JS-enhanced floating tooltip (avoids clipping and stays in viewport) */
+.floating-tooltip {
+    position: fixed;
+    top: 0;
+    left: 0;
+    display: none;
+    background: #333;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.4;
+    z-index: 1000000;
+    max-width: 280px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+    pointer-events: none;
+}
+
+/* When JS is active, hide CSS pseudo-tooltips to prevent duplicates */
+.js-tooltips .tooltip-icon::before { display: none !important; }
+
+        /* Responsive Design */
+        @media (max-width: 1400px) {
+            .dashboard-container {
+                padding: 3px 4px;
+            }
+            
+            .stats-container {
+                grid-template-columns: repeat(7, minmax(90px, 1fr));
+                gap: 8px;
+            }
+            
+            .stat-card h3 {
+                font-size: 8px;
+                letter-spacing: 0.2px;
+            }
+            
+            .stat-card .value {
+                font-size: 16px;
+            }
+            
+            .charts-grid {
+                grid-template-columns: repeat(2, 1fr); /* keep two columns on medium screens */
+            }
+            
+            .chart-container {
+                height: 360px;
+                min-width: 280px;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .header-section {
+                flex-wrap: wrap;
+                gap: 6px;
+                height: auto;
+                padding: 4px 0;
+            }
+            
+            .date-filter-container {
+                max-width: 100%;
+                flex: 1 1 auto;
+                padding: 10px 14px;
+                height: 40px;
+            }
+            
+            .action-buttons {
+                flex: 0 0 auto;
+            }
+            
+            .date-input-group input,
+            .date-input-group select {
+                height: 26px;
+                padding: 4px 8px;
+                font-size: 11px;
+            }
+            
+            .btn-3d {
+                height: 30px;
+                padding: 6px 12px;
+                font-size: 10px;
+            }
+            
+            .charts-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .chart-container {
+                height: 130px;
+                min-width: 220px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-container {
+                padding: 2px;
+                grid-template-rows: auto auto auto auto;
+            }
+
+            .header-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .date-filter-container {
+                max-width: 100%;
+                height: 36px;
+                padding: 8px 12px;
+            }
+
+            .stats-container {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 6px;
+            }
+            
+            .stat-card {
+                height: 60px;
+                padding: 4px 2px;
+            }
+            
+            .stat-card h3 {
+                font-size: 7px;
+                margin-bottom: 2px;
+            }
+            
+            .stat-card .value {
+                font-size: 13px;
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr; /* single column on small screens */
+            }
+            
+            .chart-container {
+                height: 260px;
+                min-width: 200px;
+            }
+        }
+
+        /* Container width adjustments */
+        @media (min-width: 1600px) {
+            .dashboard-container {
+                max-width: 1600px;
+            }
+        }
+        
+        @media (min-width: 1920px) {
+            .dashboard-container {
+                max-width: 1800px;
+            }
+        }
+
+
+        .modal-content canvas { width:100% !important; height:100% !important; }
+    </style>
+</head>
+<body>
+
+    
+    <div class="dashboard-container">
+        <div class="header-section">
+            <div class="date-filter-container">
+                <div class="date-input-group">
+                    <label for="startDate">Start Date:</label>
+                    <input type="date" id="startDate" />
+                </div>
+                <div class="date-input-group">
+                    <label for="endDate">End Date:</label>
+                    <input type="date" id="endDate" />
+                </div>
+                <div class="date-input-group">
+                    <label for="center">Center:</label>
+                    <select id="center">
+                        <option value="all">All Centers</option>
+                    </select>
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button class="btn-3d btn-export" onclick="exportOverdueData()">
+                    Export Overdue Data
+                </button>
+                <button class="btn-3d btn-export" onclick="exportMasterReport()">
+                    Export Master Report
+                </button>
+                <button class="btn-3d btn-refresh" id="refreshBtn" onclick="refreshDashboard()">
+                    Refresh
+                </button>
+            </div>
+        </div>
+
+        <div class="stats-container" id="kpiRow">
+            <div class="kpi-group">
+                <h4 class="kpi-group-title">Admissions Performance</h4>
+                <div class="kpi-group-cards grid-4">
+                    <div class="stat-card" data-kpi="ytd_admission_target">
+                        <h3><div class="tooltip-container">YTD Admission Target <span class="tooltip-icon" data-tooltip="The target number of new student enrollments for the selected date range and center.">🗓️</span></div></h3>
+                        <div class="value"><span class="kpi-spinner"></span></div>
+                    </div>
+                    <div class="stat-card" data-kpi="ytd_admission_achieved" onclick="handleStatClick('admissions')">
+                        <h3><div class="tooltip-container">YTD Admission Achieved <span class="tooltip-icon" data-tooltip="Actual count of new students whose joining date falls within the selected period.">🗓️</span></div></h3>
+                        <div class="value"><span class="kpi-spinner"></span></div>
+                    </div>
+                    <div class="stat-card" data-kpi="ytd_admission_achieved_pct">
+                        <h3><div class="tooltip-container">YTD Admission Achieved % <span class="tooltip-icon" data-tooltip="The percentage of the admission target that has been achieved in the selected period. (Achieved / Target)">🗓️</span></div></h3>
+                        <div class="value"><span class="kpi-spinner"></span></div>
+                    </div>
+                    <div class="stat-card" data-kpi="avg_admission_value">
+                        <h3><div class="tooltip-container">Avg. Admission Value <span class="tooltip-icon" data-tooltip="The average revenue booked per new admission. (YTD Collection Booked / YTD Admission Achieved)">📊</span></div></h3>
+                        <div class="value"><span class="kpi-spinner"></span></div>
+                    </div>
+                </div>
+            </div>
+        
+            <div class="kpi-group">
+                <h4 class="kpi-group-title">Collections Performance</h4>
+                <div class="kpi-group-cards grid-4">
+                    <div class="stat-card" data-kpi="ytd_collection_target">
+                        <h3><div class="tooltip-container">YTD Collection Target <span class="tooltip-icon" data-tooltip="The target revenue to be collected for the selected date range and center.">🗓️</span></div></h3>
+                        <div class="value"><span class="kpi-spinner"></span></div>
+                    </div>
+                    <div class="stat-card" data-kpi="ytd_collection_booked" onclick="handleStatClick('totalBusiness')">
+                        <h3><div class="tooltip-container">YTD Collection Booked <span class="tooltip-icon" data-tooltip="Total fee value (payable amount) of all students whose joining date is in the selected period.">🗓️</span></div></h3>
+                        <div class="value"><span class="kpi-spinner"></span></div>
+                    </div>
+                    <div class="stat-card" data-kpi="ytd_actual_collected_amount" onclick="handleStatClick('collection')">
+                        <h3><div class="tooltip-container">YTD Actual Collected Amount <span class="tooltip-icon" data-tooltip="Total actual fees collected where the receipt date falls within the selected period.">🗓️</span></div></h3>
+                        <div class="value"><span class="kpi-spinner"></span></div>
+                    </div>
+                    <div class="stat-card" data-kpi="ytd_actual_collected_amount_pct">
+                        <h3><div class="tooltip-container">YTD Actual Collected Amount % <span class="tooltip-icon" data-tooltip="The percentage of the collection target that has been actually collected. (Collected / Target)">🗓️</span></div></h3>
+                        <div class="value"><span class="kpi-spinner"></span></div>
+                    </div>
+                </div>
+            </div>
+        
+            <div class="kpi-group">
+                <h4 class="kpi-group-title">Student Payment Status</h4>
+                <div class="kpi-group-cards grid-4">
+                    <div class="stat-card" data-kpi="fully_paid_students" onclick="handleStatClick('fullyPaid')">
+                        <h3><div class="tooltip-container">Fully Paid Admissions <span class="tooltip-icon" data-tooltip="Total count of students whose 'Installment_status' is exactly 'Fully Paid' within the selected period.">🗓️</span></div></h3>
+                        <div class="value"><span class="kpi-spinner"></span></div>
+                    </div>
+                    <div class="stat-card" data-kpi="first_installment_due_students" onclick="handleStatClick('installment1Due')">
+                        <h3><div class="tooltip-container">1st Installment Due Students <span class="tooltip-icon" data-tooltip="Count of active (not absconded) students whose 'Installment_status' is '1st Installment Due'.">🗓️</span></div></h3>
+                        <div class="value"><span class="kpi-spinner"></span></div>
+                    </div>
+                    <div class="stat-card" data-kpi="second_installment_due_students" onclick="handleStatClick('installment2Due')">
+                        <h3><div class="tooltip-container">2nd Installment Due Students <span class="tooltip-icon" data-tooltip="Count of active (not absconded) students whose 'Installment_status' is '2nd Installment Due'.">🗓️</span></div></h3>
+                        <div class="value"><span class="kpi-spinner"></span></div>
+                    </div>
+                    <div class="stat-card" data-kpi="total_overdue_students">
+                        <h3><div class="tooltip-container">Total Overdue Students <span class="tooltip-icon" data-tooltip="Total count of students with a past-due installment.">📊</span></div></h3>
+                        <div class="value"><span class="kpi-spinner"></span></div>
+                    </div>
+                </div>
+            </div>
+        
+            <div class="kpi-group">
+                <h4 class="kpi-group-title">Bad Debts Analysis</h4>
+                <div class="kpi-group-cards grid-4">
+                     <div class="stat-card" data-kpi="bad_debts_students" onclick="handleStatClick('badDebtsStudents')">
+                        <h3><div class="tooltip-container">Bad Debts Students Count <span class="tooltip-icon" data-tooltip="Total count of students marked as 'Absconded' or having a Bad Debt amount greater than zero.">🗓️</span></div></h3>
+                        <div class="value"><span class="kpi-spinner"></span></div>
+                    </div>
+                    <div class="stat-card" data-kpi="bad_debts_amount" onclick="handleStatClick('badDebtsAmount')">
+                        <h3><div class="tooltip-container">Bad Debts Amount <span class="tooltip-icon" data-tooltip="The total sum of the 'BadDebt' column for students within the selected period.">🗓️</span></div></h3>
+                        <div class="value"><span class="kpi-spinner"></span></div>
+                    </div>
+                    <div class="stat-card" data-kpi="bad_debts_amount_pct">
+                        <h3><div class="tooltip-container">Bad Debts Amount % <span class="tooltip-icon" data-tooltip="The percentage of the collection target that is considered Bad Debt. (Bad Debt Amount / Target)">🗓️</span></div></h3>
+                        <div class="value"><span class="kpi-spinner"></span></div>
+                    </div>
+                    <div class="stat-card" data-kpi="bad_debt_rate_pct">
+                        <h3><div class="tooltip-container">Bad Debt Rate % (Count) <span class="tooltip-icon" data-tooltip="The percentage of newly admitted students who have become a bad debt. (Bad Debts Students / YTD Admission Achieved)">📊</span></div></h3>
+                        <div class="value"><span class="kpi-spinner"></span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-container"
+                 >
+                <button class="expand-btn" onclick="expandChart('fullyPaidChart','Fully Paid Admissions')">Expand</button>
+                <h4><div class="tooltip-container">Fully Paid Admissions <span class="tooltip-icon" data-tooltip="A breakdown of students marked as 'Fully Paid' grouped by their respective centers.">ℹ️</span></div></h4>
+                <div class="chart-canvas">
+                    <canvas id="fullyPaidChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-container">
+                <button class="expand-btn" onclick="expandChart('overdueChart','Overdue Analysis')">Expand</button>
+                <h4><div class="tooltip-container">Overdue Analysis <span class="tooltip-icon" data-tooltip="Groups students into buckets based on how many days their next installment is past its due date.">ℹ️</span></div></h4>
+                <div class="chart-canvas">
+                    <canvas id="overdueChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-container"
+                 >
+                <button class="expand-btn" onclick="expandChart('recoveryRateChart','Payment Recovery Rate')">Expand</button>
+                <h4><div class="tooltip-container">Payment Recovery Rate <span class="tooltip-icon" data-tooltip="Shows the percentage of students in each payment status (Fully Paid, Partial, Overdue, Absconded) for each center.">ℹ️</span></div></h4>
+                <div class="chart-canvas">
+                    <canvas id="recoveryRateChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-container"
+                 >
+                <button class="expand-btn" onclick="expandChart('badDebtByCourseChart','Bad Debt Distribution by Course')">Expand</button>
+                <h4><div class="tooltip-container">Bad Debt Distribution by Course <span class="tooltip-icon" data-tooltip="Shows the percentage of students who have become a bad debt, grouped by course.">ℹ️</span></div></h4>
+                <div class="chart-canvas">
+                    <canvas id="badDebtByCourseChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-container">
+                <button class="expand-btn" onclick="expandChart('dailyAdmissionsChart','Day-on-Day Total Admissions')">Expand</button>
+                <h4><div class="tooltip-container">Day-on-Day Total Admissions <span class="tooltip-icon" data-tooltip="A daily trend of new student admissions based on their 'joining_date'.">ℹ️</span></div></h4>
+                <div class="chart-canvas">
+                    <canvas id="dailyAdmissionsChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-container">
+                <button class="expand-btn" onclick="expandChart('monthlyAdmissionsTargetChart','MoM Target vs Admissions (Count)')">Expand</button>
+                <h4><div class="tooltip-container">MoM Target vs Collected Count <span class="tooltip-icon" data-tooltip="Compares the actual Count of students against the pre-set monthly Enrollment Target.">ℹ️</span></div></h4>
+                <div class="chart-canvas">
+                    <canvas id="monthlyAdmissionsTargetChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-container">
+                <button class="expand-btn" onclick="expandChart('monthlyCollectionsTargetChart','MoM Target vs Collected Amount')">Expand</button>
+                <h4><div class="tooltip-container">MoM Target vs Collected Amount <span class="tooltip-icon" data-tooltip="Compares the actual amount collected each month against the pre-set monthly revenue target.">ℹ️</span></div></h4>
+                <div class="chart-canvas">
+                    <canvas id="monthlyCollectionsTargetChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-container">
+                <button class="expand-btn" onclick="expandChart('badDebtByCenterChart','Bad Debts by Center')">Expand</button>
+                <h4><div class="tooltip-container">Bad Debts by Center <span class="tooltip-icon" data-tooltip="Shows the total sum of bad debt amounts, broken down by each center.">ℹ️</span></div></h4>
+                <div class="chart-canvas">
+                    <canvas id="badDebtByCenterChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Full width progress bar for total collection target achievement -->
+            <div class="chart-container full-row">
+                <h4><div class="tooltip-container">2025-26 Overall Collection Target Achievement <span class="tooltip-icon" data-tooltip="Shows the percentage of the total collection target achieved for each center. This chart is unaffected by the date filter, but updates with the Center selection.">ℹ️</span></div></h4>
+                <div class="chart-canvas">
+                    <canvas id="targetProgressChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        
+        
+        <div class="modal-overlay" id="chartModal">
+            <div class="modal-content">
+                <button class="modal-close" onclick="closeModal()">Close</button>
+                <h4 id="modalTitle" style="text-align:center;margin-bottom:12px;font-size:16px;margin-top:8px;">Expanded Chart</h4>
+                <div id="modalChartContainer" style="position:relative;height:calc(100% - 60px);width:100%;overflow:hidden;padding:10px;">
+                    <canvas id="modalCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- START: SECURITY & PERMISSIONS CHECK ---
+        const userSession = JSON.parse(sessionStorage.getItem('dashboardUser'));
+
+        if (!userSession) {
+            window.location.href = 'index.html';
+        }
+        // --- END: SECURITY & PERMISSIONS CHECK ---
+
+        const apiUrl = 'https://script.google.com/macros/s/AKfycbzy68bUWwhM5m7RiHhEC9x-XmDWd93vC_0OhXZl9vuYLXjKjkqH4KoNkh6ZC2iCD6Pv/exec';
+        const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+        
+        // Global variables for API data
+        let dashboardData = null;
+        
+        /**
+ * Formats a number into the Indian currency system (Lakhs, Crores).
+ * @param {number} num The number to format.
+ * @returns {string} The formatted currency string.
+ */
+function formatIndianCurrency(num) {
+    if (typeof num !== 'number') {
+        num = Number(num) || 0;
+    }
+
+    if (num >= 10000000) { // 1 Crore and above
+        const value = (num / 10000000).toFixed(2);
+        return `₹${value} Cr`;
+    } else if (num >= 100000) { // 1 Lakh to 99.99 Lakhs
+        const value = (num / 100000).toFixed(2);
+        return `₹${value} L`;
+    } else { // Below 1 Lakh
+        return `₹${num.toLocaleString('en-IN')}`;
+    }
+}
+
+        
+        // Update overdue chart based on dropdown selection
+        function updateOverdueChart() {
+            if (!dashboardData || !dashboardData.charts.overdue_analysis || !chartsCache['overdueChart']) return;
+            
+            const selectedInstallment = document.getElementById('installmentFilter')?.value || 'All Installments';
+            const data = dashboardData.charts.overdue_analysis[selectedInstallment];
+            const chart = chartsCache['overdueChart'];
+            
+            if (data) {
+                chart.data.datasets[0].data = [
+                    data['0-15 Days'] || 0,
+                    data['16-45 Days'] || 0,
+                    data['46-60 Days'] || 0,
+                    data['61-75 Days'] || 0,
+                    data['75+ Days'] || 0
+                ];
+                
+                // Update chart title based on selection
+                chart.data.datasets[0].label = selectedInstallment === 'All Installments' 
+                    ? 'Overdue Students (All)' 
+                    : `Overdue Students (${selectedInstallment})`;
+                    
+                chart.update();
+            }
+        }
+        
+        // Update modal overdue chart based on dropdown selection
+        function updateModalOverdueChart() {
+            if (!dashboardData || !dashboardData.charts.overdue_analysis || !chartsCache.modal) return;
+            
+            const selectedInstallment = document.getElementById('modalInstallmentFilter')?.value || 'All Installments';
+            const data = dashboardData.charts.overdue_analysis[selectedInstallment];
+            const chart = chartsCache.modal;
+            
+            if (data) {
+                chart.data.datasets[0].data = [
+                    data['0-15 Days'] || 0,
+                    data['16-45 Days'] || 0,
+                    data['46-60 Days'] || 0,
+                    data['61-75 Days'] || 0,
+                    data['75+ Days'] || 0
+                ];
+                
+                // Update chart title based on selection
+                chart.data.datasets[0].label = selectedInstallment === 'All Installments' 
+                    ? 'Overdue Students (All)' 
+                    : `Overdue Students (${selectedInstallment})`;
+                    
+                chart.update();
+            }
+        }
+         let allRows = [];
+        
+        // Fetch data from API
+        async function fetchDashboardData() {
+            try {
+                setRefreshing(true);
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                const center = document.getElementById('center').value;
+                
+                 console.groupCollapsed('[API] fetchDashboardData');
+                 console.log('URL:', apiUrl);
+                 console.log('Selected filters (client-side to be applied later):', { startDate, endDate, center });
+                 console.time('[API] fetch time');
+ 
+                 const response = await fetch(apiUrl);
+                const result = await response.json();
+                 console.timeEnd('[API] fetch time');
+                 console.log('HTTP ok:', response.ok, 'Status:', response.status);
+                 console.log('Payload meta:', result && result.meta);
+                 
+                 if (result && result.success) {
+                     // DEBUG: Show detailed API mapping information
+                     if (result.debug) {
+                         console.group('🔍 API DEBUG - Column Mapping');
+                         console.log('✅ Installment Status Column:', result.debug.installmentStatusColumn);
+                         console.log('📍 Column Index:', result.debug.installmentStatusIndex);
+                         console.log('🔍 All Candidates Found:', result.debug.installmentCandidates);
+                         console.log('✅ Chosen Column:', result.debug.chosenColumn);
+                         console.log('📊 Sample Data Keys:', result.debug.sampleDataKeys);
+                         console.groupEnd();
+                     }
+                     // Store raw rows for debugging/next step client-side filtering
+                     if (Array.isArray(result.data)) {
+                        allRows = result.data;
+                        window.__RAW_ROWS__ = allRows;
+                        console.log('Rows received:', allRows.length);
+                        // DEBUG: Show sample row structure and validate data
+                        if (allRows.length > 0) {
+                            console.group('🔍 DATA VALIDATION');
+                            console.log('✅ Sample row keys:', Object.keys(allRows[0]));
+                            console.log('✅ Sample Installment_status value:', allRows[0].Installment_status);
+                            
+                            // Check for fully paid students in first 10 rows
+                            let fullyPaidSample = 0;
+                            for (let i = 0; i < Math.min(10, allRows.length); i++) {
+                                if (/fully\s*paid/i.test(String(allRows[i].Installment_status || ''))) {
+                                    fullyPaidSample++;
+                                }
+                            }
+                            console.log('✅ Fully paid students in first 10 rows:', fullyPaidSample);
+                            console.groupEnd();
+                        }
+                        // Populate center dropdown dynamically from data
+                        populateCenterDropdown(allRows);
+                        try {
+                            sessionStorage.setItem('RAW_ROWS', JSON.stringify(allRows));
+                            sessionStorage.setItem('FILTERS', JSON.stringify({ startDate, endDate, center }));
+                            sessionStorage.setItem('LAST_FETCH_MS', String(Date.now()));
+                        } catch (e) { console.warn('Failed to persist data to sessionStorage', e); }
+                     } else {
+                         console.warn('Unexpected data shape. Expected array at result.data');
+                     }
+ 
+                    updateDashboardFromRows();
+                    console.log('Dashboard computed from fetched rows; raw rows available at window.__RAW_ROWS__');
+                } else {
+                    console.error('API Error:', result.error);
+                    showNotification('Error loading data from API', 'error');
+                }
+            } catch (error) {
+                console.error('Network Error:', error);
+                 showNotification('Network error while fetching data', 'error');
+             } finally {
+                 console.groupEnd('[API] fetchDashboardData');
+                 setRefreshing(false);
+             }
+         }
+ 
+         function updateDashboardFromRows() {
+             const filters = getActiveFilters();
+             console.groupCollapsed('[DASH] compute from rows');
+             console.log('Active filters:', filters);
+             const built = buildDashboardData(allRows, filters);
+             console.log('KPI snapshot:', built && built.kpis);
+             dashboardData = built;
+
+                updateDashboard();
+             console.groupEnd('[DASH] compute from rows');
+         }
+ 
+         function getActiveFilters() {
+             const startDate = document.getElementById('startDate').value;
+             const endDate = document.getElementById('endDate').value;
+             const center = document.getElementById('center').value;
+             return { startDate, endDate, center };
+         }
+
+        function normalizeCenterValue(value) {
+            return String(value || '').trim();
+        }
+
+        function populateCenterDropdown(rows) {
+            const select = document.getElementById('center');
+            if (!select) return;
+            const previous = (select.value || 'all');
+            const set = new Set();
+            rows.forEach(r => {
+                const c = normalizeCenterValue(r.center);
+                if (c) set.add(c);
+            });
+            const centers = Array.from(set).sort((a, b) => a.localeCompare(b));
+            // Rebuild options
+            while (select.firstChild) select.removeChild(select.firstChild);
+            const optAll = document.createElement('option');
+            optAll.value = 'all';
+            optAll.textContent = 'All Centers';
+            select.appendChild(optAll);
+            centers.forEach(c => {
+                const o = document.createElement('option');
+                o.value = c; o.textContent = c;
+                select.appendChild(o);
+            });
+            // Restore selection if possible
+            const canRestore = previous && (previous === 'all' || centers.includes(previous));
+            select.value = canRestore ? previous : 'all';
+        }
+
+        // REPLACED buildDashboardData function
+        function buildDashboardData(rows, filters) {
+    const parseDate = (s) => {
+        if (!s) return null;
+        const d = new Date(s);
+        return isNaN(d.getTime()) ? null : d;
+    };
+    const start = parseDate(filters.startDate);
+    const end = parseDate(filters.endDate);
+    const inRange = (date) => {
+        if (!date) return false;
+        if (start && date < start) return false;
+        if (end) {
+            const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59, 999);
+            if (date > endDay) return false;
+        }
+        return true;
+    };
+    const centerOk = (c) => {
+        if (filters.center === 'all') return true;
+        return String(c || '').trim().toLowerCase() === String(filters.center || '').trim().toLowerCase();
+    };
+    const toNum = (v) => (typeof v === 'number') ? v : Number(String(v || '').replace(/[\s,]/g, '')) || 0;
+    
+    // Task 1 Fix: A clearer, more correct percentage calculation function.
+    const pct = (numerator, denominator) => {
+        const num = Number(numerator) || 0;
+        const den = Number(denominator) || 0;
+        if (den === 0) {
+            return 0;
+        }
+        return (num / den) * 100;
+    };
+
+
+    // --- Data Subsets ---
+    const byJoining = rows.filter(r => centerOk(r.center) && inRange(parseDate(r.joining_date)));
+    const byReceipt = rows.filter(r => centerOk(r.center) && inRange(parseDate(r.new_receipt_date)));
+
+    // --- KPI Calculations ---
+    const total_admissions = byJoining.length;
+    const fullyPaidList = byReceipt.filter(r => String(r.Installment_status || '').trim() === 'Fully Paid');
+    const fully_paid_students = fullyPaidList.length;
+    const isNotAbsconded = (r) => !/absconded/i.test(String(r.Our_Status || ''));
+    
+    const first_installment_due_students = byJoining.filter(r => {
+        const status = String(r.Installment_status || '').trim();
+        return isNotAbsconded(r) && status === '1st Installment Due';
+    }).length;
+    
+    const second_installment_due_students = byJoining.filter(r => {
+        const status = String(r.Installment_status || '').trim();
+        return isNotAbsconded(r) && status === '2nd Installment Due';
+    }).length;
+    
+    const total_business = byJoining.reduce((sum, r) => sum + toNum(r.total_payable_cr), 0);
+    const total_collection = byReceipt.reduce((sum, r) => sum + toNum(r.total_collection_cr), 0);
+
+    const bad_debt_rows = byReceipt.filter(r => toNum(r.BadDebt) > 0 || /^Absconded$/i.test(String(r.Our_Status || '')));
+    const bad_debts_students = bad_debt_rows.length;
+    const bad_debts_amount = bad_debt_rows.reduce((s, r) => s + toNum(r.BadDebt), 0);
+
+    // --- Chart Data Calculations ---
+
+    // **FIXED**: Fully Paid Chart logic now matches KPI logic
+    const centerMap = {};
+    fullyPaidList.forEach(r => {
+        const c = String(r.center || 'Unknown');
+        centerMap[c] = (centerMap[c] || 0) + 1;
+    });
+
+    const overdueToday = new Date();
+    const overdueAnalysis = {
+        'All Installments': { '0-15 Days': 0, '16-45 Days': 0, '46-60 Days': 0, '61-75 Days': 0, '75+ Days': 0 },
+        '1st Installment': { '0-15 Days': 0, '16-45 Days': 0, '46-60 Days': 0, '61-75 Days': 0, '75+ Days': 0 },
+        '2nd Installment': { '0-15 Days': 0, '16-45 Days': 0, '46-60 Days': 0, '61-75 Days': 0, '75+ Days': 0 },
+        '3rd Installment': { '0-15 Days': 0, '16-45 Days': 0, '46-60 Days': 0, '61-75 Days': 0, '75+ Days': 0 },
+        '4th Installment': { '0-15 Days': 0, '16-45 Days': 0, '46-60 Days': 0, '61-75 Days': 0, '75+ Days': 0 }
+    };
+    byReceipt.forEach(r => {
+        const installmentStatus = String(r.Installment_status || '');
+        const dueDate = parseDate(r.Next_Unpaid_DueDate);
+        if (!dueDate || dueDate >= overdueToday) return;
+        const daysPastDue = Math.floor((overdueToday - dueDate) / (1000 * 60 * 60 * 24));
+        let timeRange = '75+ Days';
+        if (daysPastDue <= 15) timeRange = '0-15 Days';
+        else if (daysPastDue <= 45) timeRange = '16-45 Days';
+        else if (daysPastDue <= 60) timeRange = '46-60 Days';
+        else if (daysPastDue <= 75) timeRange = '61-75 Days';
+        overdueAnalysis['All Installments'][timeRange] += 1;
+        if (installmentStatus.includes('1st Installment')) {
+            overdueAnalysis['1st Installment'][timeRange] += 1;
+        } else if (installmentStatus.includes('2nd Installment')) {
+            overdueAnalysis['2nd Installment'][timeRange] += 1;
+        } else if (installmentStatus.includes('3rd Installment')) {
+            overdueAnalysis['3rd Installment'][timeRange] += 1;
+        } else if (installmentStatus.includes('4th Installment')) {
+            overdueAnalysis['4th Installment'][timeRange] += 1;
+        }
+    });
+    const recovery = {};
+    const today = new Date();
+    byReceipt.forEach(r => {
+        const c = String(r.center || 'Unknown');
+        const installmentStatus = String(r.Installment_status || '').trim();
+        const ourStatus = String(r.Our_Status || '').toLowerCase();
+        const due = parseDate(r.Next_Unpaid_DueDate);
+        recovery[c] = recovery[c] || { total: 0, full: 0, partial: 0, overdue: 0, absconded: 0 };
+        recovery[c].total += 1;
+        if (ourStatus.includes('absconded')) {
+            recovery[c].absconded += 1;
+        } else if (installmentStatus === 'Fully Paid') {
+            recovery[c].full += 1;
+        } else if (due && due < today) {
+            recovery[c].overdue += 1;
+        } else {
+            recovery[c].partial += 1;
+        }
+    });
+    const recovery_rates = {};
+    const recovery_counts = {};
+    Object.keys(recovery).forEach(c => {
+        const r = recovery[c];
+        const denom = Math.max(1, r.total);
+        recovery_rates[c] = {
+            'Full Payment': Math.round((r.full / denom) * 100),
+            'Partial Payment': Math.round((r.partial / denom) * 100),
+            'Overdue': Math.round((r.overdue / denom) * 100),
+            'Absconded': Math.round((r.absconded / denom) * 100)
+        };
+        recovery_counts[c] = { total: r.total, full: r.full, partial: r.partial, overdue: r.overdue, absconded: r.absconded };
+    });
+    const courseAgg = {};
+    byReceipt.forEach(r => {
+        const course = String(r.course || 'Unknown');
+        courseAgg[course] = courseAgg[course] || { t: 0, b: 0 };
+        courseAgg[course].t += 1;
+        if (toNum(r.BadDebt) > 0) courseAgg[course].b += 1;
+    });
+    const bad_debt_by_course = {};
+    const bad_debt_by_course_counts = {};
+    Object.keys(courseAgg).forEach(k => {
+        const v = courseAgg[k];
+        bad_debt_by_course[k] = Math.round((v.b / Math.max(1, v.t)) * 1000) / 10;
+        bad_debt_by_course_counts[k] = { bad: v.b, total: v.t };
+    });
+
+    const dailyAdmissionsMap = new Map();
+    byJoining.forEach(r => {
+        const d = parseDate(r.joining_date);
+        if (!d) return;
+        const key = d.toISOString().slice(0,10);
+        dailyAdmissionsMap.set(key, (dailyAdmissionsMap.get(key)||0) + 1);
+    });
+    const dailyAdmissions = Array.from(dailyAdmissionsMap.keys()).sort().map(k => ({ date: k, count: dailyAdmissionsMap.get(k) }));
+
+    const allMonthlyTargets = getEmbeddedMonthlyTargets();
+    let monthlyTargets = allMonthlyTargets.totals;
+    let monthlyTargetsByCenter = allMonthlyTargets.centers;
+
+    const allDates = byJoining.map(r=>parseDate(r.joining_date)).concat(byReceipt.map(r=>parseDate(r.new_receipt_date))).filter(Boolean).sort((a,b)=>a-b);
+    const startMonth = allDates[0] ? new Date(allDates[0].getFullYear(), allDates[0].getMonth(), 1) : null;
+    const endMonth = allDates[allDates.length-1] ? new Date(allDates[allDates.length-1].getFullYear(), allDates[allDates.length-1].getMonth(), 1) : null;
+    const monthKeys = [];
+    if (startMonth && endMonth) {
+        let c = new Date(startMonth);
+        while (c <= endMonth) {
+            const k = `${c.getFullYear()}-${String(c.getMonth()+1).padStart(2,'0')}`;
+            monthKeys.push(k);
+            c = new Date(c.getFullYear(), c.getMonth()+1, 1);
+        }
+    }
+    
+    const admissionsByMonth = {};
+    byJoining.forEach(r => {
+        const d = parseDate(r.joining_date); if (!d) return;
+        const mk = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        admissionsByMonth[mk] = (admissionsByMonth[mk]||0)+1;
+    });
+    const collectionsByMonth = {};
+    byReceipt.forEach(r => {
+        const d = parseDate(r.new_receipt_date); if (!d) return;
+        const mk = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        collectionsByMonth[mk] = (collectionsByMonth[mk]||0)+toNum(r.total_collection_cr);
+    });
+    
+    const selectedCenterKey = (filters.center && filters.center !== 'all') ? String(filters.center).trim() : null;
+    const centerMonthly = selectedCenterKey ? (monthlyTargetsByCenter[selectedCenterKey] || {}) : {};
+
+    const monthlyTargetVsAdmissions = monthKeys.map(k => {
+        const centerTarget = selectedCenterKey ? Number((centerMonthly[k] && centerMonthly[k].admission_target) || 0) : null;
+        const totalTarget = Number((monthlyTargets[k] && monthlyTargets[k].admission_target) || 0);
+        return { month: k, target: (selectedCenterKey ? centerTarget : totalTarget), actual: Number(admissionsByMonth[k]||0) };
+    });
+    const monthlyTargetVsCollections = monthKeys.map(k => {
+        const centerTarget = selectedCenterKey ? Number((centerMonthly[k] && centerMonthly[k].collection_target_lakh) || 0) : null;
+        const totalTarget = Number((monthlyTargets[k] && monthlyTargets[k].collection_target_lakh) || 0);
+        return { month: k, target_lakh: (selectedCenterKey ? centerTarget : totalTarget), actual_lakh: (Number(collectionsByMonth[k]||0))/100000 };
+    });
+
+    const badDebtByCenter = {};
+    byReceipt.forEach(r => {
+        const c = String(r.center || 'Unknown');
+        const amt = toNum(r.BadDebt);
+        if (amt>0) badDebtByCenter[c] = (badDebtByCenter[c]||0) + amt;
+    });
+
+    let ytd_admission_target = 0;
+    let ytd_collection_target = 0;
+    const targetSource = selectedCenterKey ? centerMonthly : monthlyTargets;
+    
+    if (start && end) {
+        let currentMonth = new Date(start.getFullYear(), start.getMonth(), 1);
+        while (currentMonth <= end) {
+            const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+            if (targetSource[monthKey]) {
+                ytd_admission_target += toNum(targetSource[monthKey].admission_target);
+                ytd_collection_target += toNum(targetSource[monthKey].collection_target_lakh) * 100000;
+            }
+            currentMonth.setMonth(currentMonth.getMonth() + 1);
+        }
+    }
+
+    const ytd_admission_achieved = total_admissions;
+    const ytd_collection_booked = total_business;
+    const ytd_actual_collected_amount = total_collection;
+    
+    // --- NEW KPI CALCULATIONS ---
+    const avg_admission_value = ytd_admission_achieved > 0 ? (ytd_collection_booked / ytd_admission_achieved) : 0;
+    const total_overdue_students = Object.values(overdueAnalysis['All Installments']).reduce((a, b) => a + b, 0);
+    const bad_debt_rate_pct = ytd_admission_achieved > 0 ? pct(bad_debts_students, ytd_admission_achieved) : 0;
+
+    // --- Per-center progress map (independent of date range) ---
+    const progressCentersSet = new Set([...Object.keys(monthlyTargetsByCenter)]);
+    rows.forEach(r => { if (r.center) progressCentersSet.add(String(r.center).trim()); });
+    const overall_target_progress_by_center = {};
+    const norm = (s) => String(s || '').trim();
+    Array.from(progressCentersSet).sort().forEach(centerName => {
+        if (!centerName) return; // Skip empty center names
+        const cm = monthlyTargetsByCenter[centerName] || {};
+        let targetRs = 0;
+        Object.keys(cm).forEach(mk => {
+            targetRs += toNum((cm[mk] && cm[mk].collection_target_lakh) || 0) * 100000;
+        });
+        const collectedRs = rows
+            .filter(r => norm(r.center).toLowerCase() === norm(centerName).toLowerCase())
+            .reduce((s, r) => s + toNum(r.total_collection_cr), 0);
+        
+        const achievedPct = Math.min(100, pct(collectedRs, targetRs));
+        
+        overall_target_progress_by_center[centerName] = {
+            collected: collectedRs,
+            target: targetRs,
+            achieved_pct: achievedPct
+        };
+    });
+
+    return {
+        kpis: {
+            ytd_admission_target,
+            ytd_collection_target,
+            ytd_admission_achieved,
+            ytd_collection_booked,
+            ytd_actual_collected_amount,
+            ytd_admission_achieved_pct: pct(ytd_admission_achieved, ytd_admission_target),
+            ytd_collection_booked_pct: pct(ytd_collection_booked, ytd_collection_target),
+            ytd_actual_collected_amount_pct: pct(ytd_actual_collected_amount, ytd_collection_target),
+            bad_debts_amount_pct: pct(bad_debts_amount, ytd_collection_target),
+            fully_paid_students,
+            first_installment_due_students,
+            second_installment_due_students,
+            bad_debts_students,
+            bad_debts_amount,
+            avg_admission_value, 
+            total_overdue_students, 
+            bad_debt_rate_pct
+        },
+        charts: {
+            fully_paid_by_center: centerMap,
+            overdue_analysis: overdueAnalysis,
+            recovery_rates,
+            recovery_counts,
+            bad_debt_by_course,
+            bad_debt_by_course_counts,
+            daily_admissions: dailyAdmissions,
+            monthly_target_vs_admissions: monthlyTargetVsAdmissions,
+            monthly_target_vs_collections: monthlyTargetVsCollections,
+            bad_debt_by_center_amount: badDebtByCenter,
+            overall_target_progress_by_center: overall_target_progress_by_center
+        }
+    };
+}       
+        
+        // Update dashboard with API data
+        function updateDashboard() {
+            if (!dashboardData) return;
+            
+            // Update KPIs
+            updateKPIs(dashboardData.kpis);
+            
+            // Update charts
+            updateCharts(dashboardData.charts);
+        }
+        
+       // Find your existing updateKPIs function and replace it with this improved version.
+
+function updateKPIs(kpis) {
+    const toNum = (v) => (typeof v === 'number') ? v : Number(String(v || '').replace(/[\s,]/g, '')) || 0;
+    const mapNumber = [
+        'ytd_admission_target', 'ytd_collection_target', 'ytd_admission_achieved', 'ytd_collection_booked',
+        'ytd_actual_collected_amount', 'ytd_admission_achieved_pct', 'ytd_actual_collected_amount_pct',
+        'bad_debts_amount_pct', 'fully_paid_students', 'first_installment_due_students',
+        'second_installment_due_students', 'bad_debts_students', 'bad_debts_amount', 'avg_admission_value',
+        'total_overdue_students', 'bad_debt_rate_pct'
+    ];
+
+    // Define which KPIs should be color-coded against their targets
+    const performancePairs = {
+        'ytd_admission_achieved': 'ytd_admission_target',
+        'ytd_actual_collected_amount': 'ytd_collection_target'
+    };
+
+    mapNumber.forEach(key => {
+        const container = document.querySelector(`.stat-card[data-kpi="${key}"] .value`);
+        if (!container) return;
+        let val = kpis[key];
+        if (val === undefined || val === null || Number.isNaN(val)) {
+            container.innerHTML = '<span class="kpi-spinner"></span>';
+            return;
+        }
+
+        // Clear previous color classes
+        container.classList.remove('value-positive', 'value-negative');
+
+        // Apply conditional coloring
+        if (performancePairs[key]) {
+            const achieved = toNum(kpis[key]);
+            const target = toNum(kpis[performancePairs[key]]);
+            if (target > 0) {
+                container.classList.add(achieved >= target ? 'value-positive' : 'value-negative');
+            }
+        } else if (key.endsWith('_pct')) {
+            const percentage = toNum(val);
+             // For percentages, 100% is the usual target
+            container.classList.add(percentage >= 100 ? 'value-positive' : 'value-negative');
+        }
+
+        let text;
+        const isPercent = key.endsWith('_pct');
+        const isMoney = ['ytd_collection_target','ytd_collection_booked','ytd_actual_collected_amount','bad_debts_amount', 'avg_admission_value'].includes(key);
+        if (isPercent) {
+            text = `${Math.round(Number(val) * 10) / 10}%`;
+        } else if (isMoney) {
+            text = formatIndianCurrency(val);
+        } else {
+            text = Number(val).toLocaleString('en-IN');
+        }
+        container.textContent = text;
+        fitTextToContainer(container, 24, 12);
+    });
+    setRefreshing(false);
+}
+
+// Ensure this helper function is also in your script
+function fitTextToContainer(el, startPx, minPx) {
+    try {
+        let size = startPx;
+        el.style.fontSize = size + 'px';
+        const parent = el.parentElement;
+        // Reduce font size until the text fits within the parent's width
+        while (size > minPx && el.scrollWidth > parent.clientWidth - 8) {
+            size -= 1;
+            el.style.fontSize = size + 'px';
+        }
+    } catch (e) {
+        console.warn("Fit text failed", e);
+    }
+}
+
+        function fitTextToContainer(el, startPx, minPx) {
+            try {
+                let size = startPx;
+                el.style.fontSize = size + 'px';
+                const parent = el.parentElement;
+                // reduce until fits
+                while (size > minPx && el.scrollWidth > parent.clientWidth - 8) {
+                    size -= 1;
+                    el.style.fontSize = size + 'px';
+                }
+            } catch (e) {}
+        }
+
+        window.addEventListener('resize', () => {
+            document.querySelectorAll('.stat-card .value').forEach(v => fitTextToContainer(v, 24, 12));
+        });
+        
+        // Update charts with API data
+        function updateCharts(charts) {
+            // Update Fully Paid Admissions Chart
+            if (charts.fully_paid_by_center && chartsCache['fullyPaidChart']) {
+                const chart = chartsCache['fullyPaidChart'];
+                chart.data.labels = Object.keys(charts.fully_paid_by_center);
+                chart.data.datasets[0].data = Object.values(charts.fully_paid_by_center);
+                chart.update();
+            }
+            
+            // Update Overdue Chart
+            if (charts.overdue_analysis && chartsCache['overdueChart']) {
+                updateOverdueChart();
+            }
+            
+            // Update Recovery Rate Chart
+            if (charts.recovery_rates && chartsCache['recoveryRateChart']) {
+                const chart = chartsCache['recoveryRateChart'];
+                const centers = Object.keys(charts.recovery_rates);
+                chart.data.labels = centers;
+                chart.data.datasets[0].data = centers.map(c => charts.recovery_rates[c]['Full Payment'] || 0);
+                chart.data.datasets[1].data = centers.map(c => charts.recovery_rates[c]['Partial Payment'] || 0);
+                chart.data.datasets[2].data = centers.map(c => charts.recovery_rates[c]['Overdue'] || 0);
+                chart.data.datasets[3].data = centers.map(c => charts.recovery_rates[c]['Absconded'] || 0);
+
+                chart.$counts = charts.recovery_counts || {};
+                chart.update();
+            }
+            
+            // Update Bad Debt by Course Chart
+            if (charts.bad_debt_by_course && chartsCache['badDebtByCourseChart']) {
+                const chart = chartsCache['badDebtByCourseChart'];
+                chart.data.labels = Object.keys(charts.bad_debt_by_course);
+                chart.data.datasets[0].data = Object.values(charts.bad_debt_by_course);
+                chart.$counts = charts.bad_debt_by_course_counts || {};
+                chart.update();
+            }
+            
+            // Update Daily Admissions (DoD)
+            if (charts.daily_admissions && chartsCache['dailyAdmissionsChart']) {
+                const chart = chartsCache['dailyAdmissionsChart'];
+                const items = charts.daily_admissions || [];
+                chart.data.labels = items.map(x => x.date);
+                chart.data.datasets[0].data = items.map(x => x.count);
+                chart.update();
+            }
+
+            // Update Monthly Target vs Admissions
+            if (charts.monthly_target_vs_admissions && chartsCache['monthlyAdmissionsTargetChart']) {
+                const chart = chartsCache['monthlyAdmissionsTargetChart'];
+                const rows = charts.monthly_target_vs_admissions || [];
+                const labels = rows.map(r => r.month);
+                chart.data.labels = labels;
+                chart.data.datasets[0].data = rows.map(r => r.target);
+                chart.data.datasets[1].data = rows.map(r => r.actual);
+                chart.update();
+            }
+
+            // Update Monthly Target vs Collections (₹L)
+            if (charts.monthly_target_vs_collections && chartsCache['monthlyCollectionsTargetChart']) {
+                const chart = chartsCache['monthlyCollectionsTargetChart'];
+                const rows = charts.monthly_target_vs_collections || [];
+                const labels = rows.map(r => r.month);
+                chart.data.labels = labels;
+                chart.data.datasets[0].data = rows.map(r => r.target_lakh);
+                chart.data.datasets[1].data = rows.map(r => r.actual_lakh);
+                chart.update();
+            }
+
+            // Update Bad Debts by Center (₹)
+            if (charts.bad_debt_by_center_amount && chartsCache['badDebtByCenterChart']) {
+                const chart = chartsCache['badDebtByCenterChart'];
+                chart.data.labels = Object.keys(charts.bad_debt_by_center_amount);
+                chart.data.datasets[0].data = Object.values(charts.bad_debt_by_center_amount);
+                chart.update();
+            }
+
+            // Task 3 Enhancement: Update Overall Target Progress by Center, sorted by performance
+            if (charts.overall_target_progress_by_center && chartsCache['targetProgressChart']) {
+                const chart = chartsCache['targetProgressChart'];
+                const map = charts.overall_target_progress_by_center || {};
+                const selectedCenter = (document.getElementById('center')?.value || 'all').trim();
+                
+                let labels = Object.keys(map).filter(c => map[c].target > 0); // Only show centers with a target
+                
+                if (selectedCenter && selectedCenter !== 'all') {
+                    labels = labels.filter(c => c.trim().toLowerCase() === selectedCenter.trim().toLowerCase());
+                }
+                
+                // Sort by achieved desc for readability
+                labels.sort((a,b) => (map[b].achieved_pct||0) - (map[a].achieved_pct||0));
+
+                chart.data.labels = labels;
+                chart.data.datasets[0].data = labels.map(c => Number(map[c].achieved_pct || 0));
+                chart.data.datasets[1].data = labels.map(c => Math.max(0, 100 - Number(map[c].achieved_pct || 0)));
+                
+                // Store rupee meta for the tooltip
+                const meta = {};
+                labels.forEach(c => { meta[c] = { collected: map[c].collected || 0, target: map[c].target || 0 }; });
+                chart.$progressMeta = meta;
+                
+                chart.update();
+            }
+        }
+
+
+        
+        // Get default data (fallback)
+        function getDefaultData() {
+            return {
+                kpis: {
+                    total_admissions: 1284,
+                    fully_paid_students: 856,
+                    first_installment_due_students: 0,
+                    second_installment_due_students: 0,
+                    total_business: 0,
+                    total_collection: 45.2,
+                    total_balance: 12.8,
+                    bad_debts_students: 89,
+                    bad_debts_amount: 3.2
+                },
+                charts: {
+                    fully_paid_by_center: {'Delhi NCR': 245, 'Mumbai': 189, 'Bangalore': 167, 'Chennai': 123, 'Kolkata': 98, 'Pune': 34},
+                    collections_breakdown: {'Full Payment': 45, '1st Installment': 0, '2nd Installment': 0, 'Pending': 10},
+                    recovery_rates: {},
+                    bad_debt_by_course: {},
+                    monthly_trends: {}
+                }
+            };
+        }
+        
+        // Set default dates and initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            const febFirstCurrentYear = new Date(today.getFullYear(), 1, 1);
+            initializeCharts();
+
+            function formatDateLocal(d) {
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const da = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${da}`;
+            }
+
+            const startDateInput = document.getElementById('startDate');
+            const endDateInput = document.getElementById('endDate');
+            const centerInput = document.getElementById('center');
+
+            // --- PERMISSIONS LOGIC ---
+            if (userSession.role === 'center') {
+                centerInput.value = userSession.center;
+                centerInput.disabled = true; // Lock the dropdown for center users
+            } else {
+                centerInput.value = 'all'; // Default for admin
+            }
+
+            startDateInput.value = formatDateLocal(febFirstCurrentYear);
+            endDateInput.valueAsDate = today;
+
+            showLoading(true);
+
+            const storedRowsData = sessionStorage.getItem('RAW_ROWS');
+            const storedFiltersData = sessionStorage.getItem('FILTERS');
+            const lastFetchTimestamp = Number(sessionStorage.getItem('LAST_FETCH_MS') || 0);
+            const isCacheFresh = storedRowsData && lastFetchTimestamp && (Date.now() - lastFetchTimestamp) < CACHE_TTL_MS;
+
+            if (isCacheFresh) {
+                try {
+                    allRows = JSON.parse(storedRowsData) || [];
+                    window.__RAW_ROWS__ = allRows;
+                    populateCenterDropdown(allRows);
+
+                    if (userSession.role === 'center') {
+                        centerInput.value = userSession.center; // Re-apply after populating
+                    } else if (storedFiltersData) {
+                         const f = JSON.parse(storedFiltersData);
+                         if (f && f.center) centerInput.value = f.center;
+                    }
+
+                     updateDashboardFromRows();
+                     showLoading(false);
+                     setRefreshing(false);
+                 } catch (e) {
+                     console.warn('Error restoring from session, fetching data instead:', e);
+                     fetchDashboardData().finally(() => { showLoading(false); setRefreshing(false); });
+                 }
+             } else {
+                 fetchDashboardData().finally(() => { showLoading(false); setRefreshing(false); });
+             }
+         });
+        // Initialize floating tooltips after DOM is ready
+        document.addEventListener('DOMContentLoaded', initFloatingTooltips);
+
+        // Button Click Handlers
+        function exportOverdueData() {
+            try {
+                const filters = getActiveFilters();
+                const data = Array.isArray(allRows) && allRows.length ? allRows : JSON.parse(sessionStorage.getItem('RAW_ROWS')||'[]');
+                const wb = XLSX.utils.book_new();
+
+                // Summary sheet: overdue counts and amounts by center (Next_Unpaid_DueDate < today, not Absconded)
+                const toNum = v => typeof v==='number'?v:Number(String(v||'').replace(/[\s,]/g,''))||0;
+                const parse = s => s? new Date(s): null;
+                const today = new Date(); today.setHours(23,59,59,999);
+                const center = (filters.center||'all').toLowerCase();
+                const centerOk = c => center==='all' || String(c||'').toLowerCase()===center;
+                const isOverdue = r => {
+                    const due = parse(r.Next_Unpaid_DueDate);
+                    const notAbsconded = !/absconded/i.test(String(r.Our_Status||''));
+                    return due && due < today && notAbsconded;
+                };
+                const overdueRows = data.filter(r => centerOk(r.center) && isOverdue(r));
+
+                const byCenter = {};
+                overdueRows.forEach(r => {
+                    const c = String(r.center||'Unknown');
+                    byCenter[c] = byCenter[c] || { center:c, overdue_students:0, overdue_amount:0 };
+                    byCenter[c].overdue_students += 1;
+                    byCenter[c].overdue_amount += toNum(r.total_balance_cr);
+                });
+                const asOf = new Date();
+                const summaryAoA = [['Center','Overdue Students','Overdue Amount (₹L)','As of'], ...Object.values(byCenter).map(o=>[o.center,o.overdue_students,Math.round(o.overdue_amount*10)/10,asOf.toISOString().slice(0,10)] )];
+                const ws1 = XLSX.utils.aoa_to_sheet(summaryAoA);
+                XLSX.utils.book_append_sheet(wb, ws1, 'Overdue Summary');
+
+                // Detail sheet: full rows for overdue
+                const detailRows = overdueRows;
+                const ws2 = XLSX.utils.json_to_sheet(detailRows);
+                XLSX.utils.book_append_sheet(wb, ws2, 'Overdue Detail');
+
+                const fname = `Overdue_${asOf.toISOString().slice(0,10)}.xlsx`;
+                XLSX.writeFile(wb, fname);
+                showNotification('Overdue export generated', 'success');
+            } catch (e) {
+                console.error('Overdue export failed', e);
+                showNotification('Overdue export failed', 'error');
+            }
+        }
+
+        function exportMasterReport() {
+            try {
+                const filters = getActiveFilters();
+                const data = Array.isArray(allRows) && allRows.length ? allRows : JSON.parse(sessionStorage.getItem('RAW_ROWS')||'[]');
+                const wb = XLSX.utils.book_new();
+
+                // Build KPIs and chart inputs similar to dashboard
+                const toNum = v => typeof v==='number'?v:Number(String(v||'').replace(/[\s,]/g,''))||0;
+                const parse = s => s? new Date(s): null;
+                const start = filters.startDate ? new Date(filters.startDate) : null;
+                const end = filters.endDate ? new Date(filters.endDate) : null; if (end) end.setHours(23,59,59,999);
+                const center = (filters.center||'all').toLowerCase();
+                const centerOk = c => center==='all' || String(c||'').toLowerCase()===center;
+                const inRange = (d) => (!start || (d && d>=start)) && (!end || (d && d<=end));
+
+                const byJoining = data.filter(r => centerOk(r.center) && inRange(parse(r.joining_date)));
+                const byReceipt = data.filter(r => centerOk(r.center) && inRange(parse(r.new_receipt_date)));
+
+                const fullyPaid = byReceipt.filter(r => /fully\s*paid/i.test(String(r.Installment_status||'')));  // Column R
+                const due1 = data.filter(r => centerOk(r.center) && !/absconded/i.test(String(r.Our_Status||'')) && (/no\s*installment\s*paid/i.test(String(r.Installment_status||'')) || /(1st|first).*installment.*due/i.test(String(r.Installment_status||'')) || /due.*(1st|first)/i.test(String(r.Installment_status||''))));  // Column R
+                const due2 = data.filter(r => centerOk(r.center) && !/absconded/i.test(String(r.Our_Status||'')) && (/(1st|first).*installment.*paid/i.test(String(r.Installment_status||'')) || /(2nd|second).*installment.*due/i.test(String(r.Installment_status||'')) || /due.*(2nd|second)/i.test(String(r.Installment_status||''))));  // Column R
+                const totalBusiness = byJoining.reduce((s,r)=>s+toNum(r.total_payable_cr),0);
+                const totalCollection = byReceipt.reduce((s,r)=>s+toNum(r.total_collection_cr),0);
+                const totalBalanceNonFull = byReceipt
+                    .filter(r => !/fully\s*paid/i.test(String(r.Installment_status||'')))  // Column R
+                    .reduce((s,r)=>s+toNum(r.total_balance_cr),0);
+                const badDebtAmt = byReceipt.reduce((s,r)=>s+toNum(r.BadDebt),0);
+                const totalBalance = Math.max(0, totalBalanceNonFull - badDebtAmt);
+
+                const kpiAoA = [
+                    ['Metric','Value','Notes'],
+                    ['Total Admissions', byJoining.length, 'Count by joining_date'],
+                    ['Fully Paid Students', fullyPaid.length, 'Installment_status contains Fully Paid'],
+                    ['1st Installment Due', due1.length, 'Based on Installment_status, not Absconded'],
+                    ['2nd Installment Due', due2.length, 'Based on Installment_status, not Absconded'],
+                    ['Total Business (₹)', totalBusiness, 'Sum of total_payable_cr for admissions'],
+                    ['Total Collection (₹)', totalCollection, 'Sum of total_collection_cr by receipt date'],
+                    ['Total Balance (₹)', totalBalance, 'Excludes Bad Debts and Fully Paid'],
+                    ['Bad Debts Students', byReceipt.filter(r=>toNum(r.BadDebt)>0 || /absconded/i.test(String(r.Our_Status||''))).length, 'Absconded counted as students'],
+                    ['Bad Debts Amount (₹)', badDebtAmt, 'Sum of BadDebt']
+                ];
+                const wsSummary = XLSX.utils.aoa_to_sheet(kpiAoA);
+                XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+
+                // Detailed sheet: all filtered rows
+                const wsDetail = XLSX.utils.json_to_sheet(byReceipt.length? byReceipt : data);
+                XLSX.utils.book_append_sheet(wb, wsDetail, 'Detail');
+
+                const fname = `Master_Report_${(filters.startDate||'start').replace(/\W+/g,'_')}_${(filters.endDate||'end').replace(/\W+/g,'_')}.xlsx`;
+                XLSX.writeFile(wb, fname);
+                showNotification('Master Report generated', 'success');
+            } catch (e) {
+                console.error('Master report export failed', e);
+                showNotification('Master report export failed', 'error');
+            }
+        }
+
+        function refreshDashboard() {
+            showNotification('Refreshing Dashboard...');
+            try {
+                sessionStorage.removeItem('RAW_ROWS');
+                sessionStorage.removeItem('FILTERS');
+                sessionStorage.removeItem('LAST_FETCH_MS');
+                sessionStorage.removeItem('RESTORE_FILTERS_ON_LOAD');
+            } catch (e) {}
+            location.reload();
+        }
+
+        // ---------- Embedded Monthly Targets ----------
+        // This function now holds all your new target data.
+        function getEmbeddedMonthlyTargets() {
+            const collectionTargets = { "Lucknow Government": { "2025-04": 20.55, "2025-05": 23.29, "2025-06": 28.77, "2025-07": 40.42, "2025-08": 34.25, "2025-09": 32.20, "2025-10": 20.55, "2025-11": 21.24, "2025-12": 22.61, "2026-01": 22.61, "2026-02": 23.98, "2026-03": 24.66 }, "Kolkata Government": { "2025-04": 13.29, "2025-05": 18.98, "2025-06": 21.90, "2025-07": 25.55, "2025-08": 25.84, "2025-09": 22.05, "2025-10": 18.98, "2025-11": 21.90, "2025-12": 22.19, "2026-01": 24.09, "2026-02": 20.44, "2026-03": 24.82 }, "Patna Government": { "2025-04": 21.06, "2025-05": 21.87, "2025-06": 22.68, "2025-07": 36.45, "2025-08": 28.35, "2025-09": 27.54, "2025-10": 14.58, "2025-11": 17.82, "2025-12": 19.44, "2026-01": 20.25, "2026-02": 18.63, "2026-03": 18.63 }, "Jaipur Government-Gopalpura": { "2025-04": 8.80, "2025-05": 20.00, "2025-06": 25.60, "2025-07": 28.80, "2025-08": 27.20, "2025-09": 17.60, "2025-10": 14.40, "2025-11": 24.00, "2025-12": 17.60, "2026-01": 16.00, "2026-02": 24.00, "2026-03": 24.00 }, "Delhi Government": { "2025-04": 0.00, "2025-05": 23.63, "2025-06": 24.50, "2025-07": 37.63, "2025-08": 30.63, "2025-09": 29.75, "2025-10": 15.75, "2025-11": 19.25, "2025-12": 21.00, "2026-01": 21.88, "2026-02": 19.25, "2026-03": 19.25 }, "Prayagraj Government-Katra": { "2025-04": 16.90, "2025-05": 17.55, "2025-06": 18.20, "2025-07": 29.25, "2025-08": 22.75, "2025-09": 22.10, "2025-10": 11.70, "2025-11": 14.30, "2025-12": 15.60, "2026-01": 16.25, "2026-02": 14.95, "2026-03": 14.95 }, "Indore Government": { "2025-04": 15.00, "2025-05": 19.50, "2025-06": 25.50, "2025-07": 37.50, "2025-08": 28.50, "2025-09": 27.00, "2025-10": 15.00, "2025-11": 15.00, "2025-12": 16.50, "2026-01": 16.50, "2026-02": 15.00, "2026-03": 16.50 }, "Ranchi Government - Lalpur": { "2025-04": 7.00, "2025-05": 17.50, "2025-06": 21.00, "2025-07": 28.00, "2025-08": 24.50, "2025-09": 21.00, "2025-10": 17.50, "2025-11": 14.70, "2025-12": 12.60, "2026-01": 12.60, "2026-02": 12.60, "2026-03": 14.00 }, "Bhopal Government": { "2025-04": 0.00, "2025-05": 3.63, "2025-06": 21.75, "2025-07": 29.00, "2025-08": 25.38, "2025-09": 21.75, "2025-10": 18.13, "2025-11": 15.23, "2025-12": 13.05, "2026-01": 13.05, "2026-02": 13.05, "2026-03": 14.50 }, "Siliguri Government": { "2025-04": 0.00, "2025-05": 13.84, "2025-06": 15.22, "2025-07": 19.37, "2025-08": 19.37, "2025-09": 17.02, "2025-10": 13.84, "2025-11": 19.37, "2025-12": 19.37, "2026-01": 19.37, "2026-02": 18.68, "2026-03": 19.37 }, "Varanasi Government - Durgakund": { "2025-04": 0.00, "2025-05": 16.88, "2025-06": 17.50, "2025-07": 28.13, "2025-08": 21.88, "2025-09": 21.25, "2025-10": 11.25, "2025-11": 13.75, "2025-12": 15.00, "2026-01": 15.63, "2026-02": 14.38, "2026-03": 15.00 }, "Agra Government": { "2025-04": 0.00, "2025-05": 15.63, "2025-06": 20.00, "2025-07": 28.75, "2025-08": 21.50, "2025-09": 20.75, "2025-10": 12.50, "2025-11": 12.75, "2025-12": 13.75, "2026-01": 13.75, "2026-02": 12.50, "2026-03": 13.75 }, "Bhubaneswar Government": { "2025-04": 0.00, "2025-05": 0.00, "2025-06": 0.00, "2025-07": 17.40, "2025-08": 19.58, "2025-09": 19.58, "2025-10": 17.40, "2025-11": 20.30, "2025-12": 21.03, "2026-01": 21.03, "2026-02": 20.30, "2026-03": 23.20 } };
+            const admissionTargets = { "Lucknow Government": { "2025-04": 150, "2025-05": 170, "2025-06": 210, "2025-07": 295, "2025-08": 250, "2025-09": 235, "2025-10": 150, "2025-11": 155, "2025-12": 165, "2026-01": 165, "2026-02": 175, "2026-03": 180 }, "Kolkata Government": { "2025-04": 91, "2025-05": 130, "2025-06": 150, "2025-07": 175, "2025-08": 177, "2025-09": 151, "2025-10": 130, "2025-11": 150, "2025-12": 152, "2026-01": 165, "2026-02": 140, "2026-03": 170 }, "Patna Government": { "2025-04": 130, "2025-05": 135, "2025-06": 140, "2025-07": 225, "2025-08": 175, "2025-09": 170, "2025-10": 90, "2025-11": 110, "2025-12": 120, "2026-01": 125, "2026-02": 115, "2026-03": 115 }, "Jaipur Government-Gopalpura": { "2025-04": 55, "2025-05": 125, "2025-06": 160, "2025-07": 180, "2025-08": 170, "2025-09": 110, "2025-10": 90, "2025-11": 150, "2025-12": 110, "2026-01": 100, "2026-02": 150, "2026-03": 150 }, "Delhi Government": { "2025-04": 0, "2025-05": 135, "2025-06": 140, "2025-07": 215, "2025-08": 175, "2025-09": 170, "2025-10": 90, "2025-11": 110, "2025-12": 120, "2026-01": 125, "2026-02": 110, "2026-03": 110 }, "Prayagraj Government-Katra": { "2025-04": 130, "2025-05": 135, "2025-06": 140, "2025-07": 225, "2025-08": 175, "2025-09": 170, "2025-10": 90, "2025-11": 110, "2025-12": 120, "2026-01": 125, "2026-02": 115, "2026-03": 115 }, "Indore Government": { "2025-04": 100, "2025-05": 130, "2025-06": 170, "2025-07": 250, "2025-08": 190, "2025-09": 180, "2025-10": 100, "2025-11": 100, "2025-12": 110, "2026-01": 110, "2026-02": 100, "2026-03": 110 }, "Ranchi Government - Lalpur": { "2025-04": 50, "2025-05": 125, "2025-06": 150, "2025-07": 200, "2025-08": 175, "2025-09": 150, "2025-10": 125, "2025-11": 105, "2025-12": 90, "2026-01": 90, "2026-02": 90, "2026-03": 100 }, "Bhopal Government": { "2025-04": 0, "2025-05": 25, "2025-06": 150, "2025-07": 200, "2025-08": 175, "2025-09": 150, "2025-10": 125, "2025-11": 105, "2025-12": 90, "2026-01": 90, "2026-02": 90, "2026-03": 100 }, "Siliguri Government": { "2025-04": 0, "2025-05": 100, "2025-06": 110, "2025-07": 140, "2025-08": 140, "2025-09": 123, "2025-10": 100, "2025-11": 140, "2025-12": 140, "2026-01": 140, "2026-02": 135, "2026-03": 140 }, "Varanasi Government - Durgakund": { "2025-04": 0, "2025-05": 135, "2025-06": 140, "2025-07": 225, "2025-08": 175, "2025-09": 170, "2025-10": 90, "2025-11": 110, "2025-12": 120, "2026-01": 125, "2026-02": 115, "2026-03": 120 }, "Agra Government": { "2025-04": 0, "2025-05": 125, "2025-06": 160, "2025-07": 230, "2025-08": 172, "2025-09": 166, "2025-10": 100, "2025-11": 102, "2025-12": 110, "2026-01": 110, "2026-02": 100, "2026-03": 110 }, "Bhubaneswar Government": { "2025-04": 0, "2025-05": 0, "2025-06": 0, "2025-07": 120, "2025-08": 135, "2025-09": 135, "2025-10": 120, "2025-11": 140, "2025-12": 145, "2026-01": 145, "2026-02": 140, "2026-03": 160 } };
+            
+            const centers = {};
+            Object.keys(collectionTargets).forEach(center => {
+                centers[center] = {};
+                Object.keys(collectionTargets[center]).forEach(month => {
+                    centers[center][month] = {
+                        collection_target_lakh: collectionTargets[center][month],
+                        admission_target: admissionTargets[center]?.[month] || 0
+                    };
+                });
+            });
+
+            const totals = {};
+            Object.values(centers).forEach(centerData => {
+                Object.entries(centerData).forEach(([month, data]) => {
+                    if (!totals[month]) {
+                        totals[month] = { admission_target: 0, collection_target_lakh: 0 };
+                    }
+                    totals[month].admission_target += data.admission_target;
+                    totals[month].collection_target_lakh += data.collection_target_lakh;
+                });
+            });
+
+            return { centers, totals };
+        }
+
+        function handleStatClick(statType) {
+            // No notification/ripple effect for now
+            openDetailsView(statType);
+        }
+
+        function openDetailsView(viewKey) {
+            try {
+                const filters = getActiveFilters();
+                sessionStorage.setItem('FILTERS', JSON.stringify(filters));
+                if (Array.isArray(allRows) && allRows.length) {
+                    sessionStorage.setItem('RAW_ROWS', JSON.stringify(allRows));
+                }
+                // Set flag so dashboard restores saved filters on return from details
+                sessionStorage.setItem('RESTORE_FILTERS_ON_LOAD', '1');
+            } catch (e) { console.warn('Failed to persist session data', e); }
+            window.location.href = 'details.html?view=' + encodeURIComponent(viewKey);
+        }
+
+        // Notification System
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'success' ? 'linear-gradient(135deg, #667eea, #764ba2)' : 'linear-gradient(135deg, #f093fb, #f5576c)'};
+                color: white;
+                padding: 15px 25px;
+                border-radius: 10px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+                font-weight: 600;
+                z-index: 10000;
+                animation: slideInRight 0.3s ease-out;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.3s ease-out';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Floating tooltip system to avoid clipping and keep text inside viewport
+        function initFloatingTooltips() {
+            try {
+                document.documentElement.classList.add('js-tooltips');
+                let bubble = document.getElementById('floatingTooltip');
+                if (!bubble) {
+                    bubble = document.createElement('div');
+                    bubble.id = 'floatingTooltip';
+                    bubble.className = 'floating-tooltip';
+                    document.body.appendChild(bubble);
+                }
+
+                const positionBubble = (anchorEl) => {
+                    const rect = anchorEl.getBoundingClientRect();
+                    const vw = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+                    const vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+                    // ensure bubble is visible to measure
+                    bubble.style.display = 'block';
+                    const tt = bubble.getBoundingClientRect();
+                    const margin = 8;
+                    let top = rect.top - tt.height - 8;
+                    if (top < margin) top = rect.bottom + 8; // flip below if no space above
+                    let left = rect.left + (rect.width / 2) - (tt.width / 2);
+                    left = Math.max(margin, Math.min(left, vw - tt.width - margin));
+                    top = Math.max(margin, Math.min(top, vh - tt.height - margin));
+                    bubble.style.top = top + 'px';
+                    bubble.style.left = left + 'px';
+                };
+
+                const attach = (el) => {
+                    const show = () => {
+                        const text = el.getAttribute('data-tooltip') || '';
+                        if (!text) return;
+                        bubble.textContent = text;
+                        bubble.style.display = 'block';
+                        positionBubble(el);
+                    };
+                    const hide = () => { bubble.style.display = 'none'; };
+                    const move = () => { if (bubble.style.display === 'block') positionBubble(el); };
+                    el.addEventListener('mouseenter', show);
+                    el.addEventListener('mouseleave', hide);
+                    el.addEventListener('mousemove', move);
+                };
+
+                document.querySelectorAll('.tooltip-icon').forEach(attach);
+            } catch (e) { console.warn('Floating tooltip init failed', e); }
+        }
+
+        // Expand chart into modal
+        let chartsCache = {};
+        function expandChart(canvasId, title) {
+    const modal = document.getElementById('chartModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalCanvas = document.getElementById('modalCanvas');
+    
+    modalTitle.textContent = title;
+
+    // --- FIX: Correctly find and remove the filter from the previous session ---
+    if (chartsCache.modal) {
+        chartsCache.modal.destroy();
+        chartsCache.modal = null;
+    }
+    // This selector now correctly looks inside the whole modal content for the filter
+    const modalContent = document.querySelector('.modal-content'); 
+    const existingFilter = modalContent.querySelector('.modal-installment-filter');
+    if (existingFilter) {
+        existingFilter.remove();
+    }
+    // --- End of FIX ---
+
+    // This logic correctly adds the filter ONLY for the overdue chart
+    if (canvasId === 'overdueChart') {
+        const filterContainer = document.createElement('div');
+        filterContainer.className = 'modal-installment-filter';
+        filterContainer.style.cssText = 'text-align: center; margin-bottom: 15px;';
+        filterContainer.innerHTML = `
+            <label for="modalInstallmentFilter" style="font-weight: 600; color: #333; margin-right: 8px;">Filter by Installment:</label>
+            <select id="modalInstallmentFilter" onchange="updateModalOverdueChart()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #ddd; background: white; font-size: 14px; min-width: 150px;">
+                <option value="All Installments">All Installments</option>
+                <option value="1st Installment">1st Installment</option>
+                <option value="2nd Installment">2nd Installment</option>
+                <option value="3rd Installment">3rd Installment</option>
+                <option value="4th Installment">4th Installment</option>
+            </select>
+        `;
+        modalTitle.insertAdjacentElement('afterend', filterContainer);
+    }
+    
+    modal.classList.add('show');
+
+    // Create the new, expanded chart
+    setTimeout(() => {
+        const sourceChart = chartsCache[canvasId];
+        if (!sourceChart) return;
+
+        const data = JSON.parse(JSON.stringify(sourceChart.config.data));
+        const options = JSON.parse(JSON.stringify(sourceChart.config.options));
+        
+        options.responsive = true;
+        options.maintainAspectRatio = false;
+
+        chartsCache.modal = new Chart(modalCanvas, {
+            type: sourceChart.config.type,
+            data: data,
+            options: options
+        });
+
+        // This part also only runs for the overdue chart
+        if (canvasId === 'overdueChart') {
+            updateModalOverdueChart();
+        }
+    }, 50);
+}
+
+// Ensure you have this function as well to update the modal chart
+function updateModalOverdueChart() {
+    if (!dashboardData || !dashboardData.charts.overdue_analysis || !chartsCache.modal) return;
+    
+    const selectedInstallment = document.getElementById('modalInstallmentFilter')?.value || 'All Installments';
+    const data = dashboardData.charts.overdue_analysis[selectedInstallment];
+    const chart = chartsCache.modal;
+    
+    if (data) {
+        chart.data.datasets[0].data = [
+            data['0-15 Days'] || 0,
+            data['16-45 Days'] || 0,
+            data['46-60 Days'] || 0,
+            data['61-75 Days'] || 0,
+            data['75+ Days'] || 0
+        ];
+        chart.data.datasets[0].label = `Overdue Students (${selectedInstallment})`;
+        chart.update();
+    }
+}
+
+        function closeModal() {
+            const modal = document.getElementById('chartModal');
+            modal.classList.remove('show');
+            if (chartsCache.modal) {
+                chartsCache.modal.destroy();
+                chartsCache.modal = null;
+            }
+            if (chartsCache._modalResizeHandler) {
+                window.removeEventListener('resize', chartsCache._modalResizeHandler);
+                delete chartsCache._modalResizeHandler;
+            }
+        }
+
+        // Chart Initialization
+        function initializeCharts() {
+            // Chart default options
+            Chart.defaults.font.family = "'Inter', sans-serif";
+            
+            // Fully Paid Admissions Chart (Bar)
+            const fullyPaidCtx = document.getElementById('fullyPaidChart').getContext('2d');
+            chartsCache['fullyPaidChart'] = new Chart(fullyPaidCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Fully Paid Students',
+                        data: [],
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 2,
+                        borderRadius: 8,
+                        hoverBackgroundColor: 'rgba(102, 126, 234, 1)',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            cornerRadius: 8,
+                            titleFont: {
+                                size: 14,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 13
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 1500,
+                        easing: 'easeInOutQuart'
+                    }
+                }
+            });
+
+            // Overdue Analysis Chart (Bar)
+            const overdueCtx = document.getElementById('overdueChart').getContext('2d');
+            chartsCache['overdueChart'] = new Chart(overdueCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['0-15 Days', '16-45 Days', '46-60 Days', '61-75 Days', '75+ Days'],
+                    datasets: [{
+                        label: 'Overdue Students',
+                        data: [],
+                        backgroundColor: [
+                            'rgba(75, 192, 192, 0.8)',
+                            'rgba(255, 205, 86, 0.8)',
+                            'rgba(255, 159, 64, 0.8)',
+                            'rgba(255, 99, 132, 0.8)',
+                            'rgba(153, 102, 255, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(255, 205, 86, 1)',
+                            'rgba(255, 159, 64, 1)',
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(153, 102, 255, 1)'
+                        ],
+                        borderWidth: 2,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                title: {
+                    display: true,
+                    text: 'Number of Students',
+                    color: '#666', 
+                    font: { size: 12, weight: 'bold' }
+                },
+                ticks: {
+                    color: '#666' 
+                },
+                grid: {
+                    color: 'rgba(0, 0, 0, 0.05)'
+                }
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: 'Days Overdue',
+                    color: '#666',
+                    font: { size: 12, weight: 'bold' }
+                },
+                ticks: {
+                    color: '#666',
+                    maxRotation: 0,
+                    minRotation: 0
+                },
+                grid: {
+                    display: false 
+                }
+            }
+        }
+    }
+});
+
+            // Payment Recovery Rate Chart (Stacked Bar)
+            const recoveryRateCtx = document.getElementById('recoveryRateChart').getContext('2d');
+            chartsCache['recoveryRateChart'] = new Chart(recoveryRateCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Full Payment', data: [], backgroundColor: 'rgba(102, 126, 234, 0.8)' },
+                        { label: 'Partial Payment', data: [], backgroundColor: 'rgba(118, 75, 162, 0.8)' },
+                        { label: 'Overdue', data: [], backgroundColor: 'rgba(255, 99, 132, 0.8)' },
+                        { label: 'Absconded', data: [], backgroundColor: 'rgba(75, 75, 75, 0.8)' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { padding: 10, font: { size: 11 } } },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)', padding: 12, cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    const chart = context.chart;
+                                    const center = context.label;
+                                    const percent = context.parsed.y;
+                                    const idx = context.datasetIndex;
+                                    const counts = chart.$counts ? chart.$counts[center] : null;
+                                    if (!counts) return `${context.dataset.label}: ${percent}%`;
+                                    const map = ['full','partial','overdue','absconded'];
+                                    const key = map[idx] || '';
+                                    const n = counts[key] || 0;
+                                    const total = counts.total || 0;
+                                    return `${context.dataset.label}: ${percent}% (${n}/${total} Students)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 } } },
+                        y: {
+                            stacked: true, beginAtZero: true, max: 100,
+                            grid: { color: 'rgba(0, 0, 0, 0.05)', drawBorder: false },
+                            ticks: { font: { size: 11 }, callback: (value) => value + '%' }
+                        }
+                    }
+                }
+            });
+
+            // Bad Debt Distribution by Course Chart (Horizontal Bar)
+            const badDebtByCourseCtx = document.getElementById('badDebtByCourseChart').getContext('2d');
+            chartsCache['badDebtByCourseChart'] = new Chart(badDebtByCourseCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Bad Debt Rate (%)',
+                        data: [],
+                        backgroundColor: ['rgba(255, 99, 132, 0.8)', 'rgba(255, 159, 64, 0.8)', 'rgba(255, 205, 86, 0.8)', 'rgba(75, 192, 192, 0.8)', 'rgba(54, 162, 235, 0.8)', 'rgba(153, 102, 255, 0.8)'],
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const percent = context.parsed.x;
+                                    const counts = context.chart.$counts ? context.chart.$counts[label] : null;
+                                    if (!counts) return `Rate: ${percent}%`;
+                                    return `Rate: ${percent}% (${counts.bad}/${counts.total} Students)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: { callback: (value) => value + '%' }
+                        }
+                    }
+                }
+            });
+
+            // Day-on-Day Total Admissions (Line)
+            const dailyAdmissionsCtx = document.getElementById('dailyAdmissionsChart').getContext('2d');
+            chartsCache['dailyAdmissionsChart'] = new Chart(dailyAdmissionsCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Admissions per Day',
+                        data: [],
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        backgroundColor: 'rgba(102, 126, 234, 0.15)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 2
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: true } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // Monthly Target vs Admissions (Count)
+            const monthlyAdmissionsTargetCtx = document.getElementById('monthlyAdmissionsTargetChart').getContext('2d');
+            chartsCache['monthlyAdmissionsTargetChart'] = new Chart(monthlyAdmissionsTargetCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Target (Count)', data: [], backgroundColor: 'rgba(99, 102, 241, 0.8)'},
+                        { label: 'Actual (Count)', data: [], backgroundColor: 'rgba(16, 185, 129, 0.8)'}
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // Monthly Target vs Collections (₹L)
+            const monthlyCollectionsTargetCtx = document.getElementById('monthlyCollectionsTargetChart').getContext('2d');
+            chartsCache['monthlyCollectionsTargetChart'] = new Chart(monthlyCollectionsTargetCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Target (₹L)', data: [], backgroundColor: 'rgba(234, 179, 8, 0.8)' },
+                        { label: 'Actual (₹L)', data: [], backgroundColor: 'rgba(118, 75, 162, 0.8)' }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.dataset.label}: ${formatIndianCurrency(context.parsed.y * 100000)}`
+                            }
+                        }
+                    },
+                    scales: { 
+                        y: { 
+                            beginAtZero: true,
+                            ticks: {
+                                callback: (value) => `${value}L`
+                            }
+                        } 
+                    }
+                }
+            });
+
+            // Bad Debts by Center (₹) horizontal bar
+            const badDebtByCenterCtx = document.getElementById('badDebtByCenterChart').getContext('2d');
+            chartsCache['badDebtByCenterChart'] = new Chart(badDebtByCenterCtx, {
+                type: 'bar',
+                data: { labels: [], datasets: [{ label: 'Bad Debt Amount', data: [], backgroundColor: 'rgba(239, 68, 68, 0.85)'}] },
+                options: {
+                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `Bad Debt: ${formatIndianCurrency(context.parsed.x)}`
+                            }
+                        }
+                    },
+                    scales: { 
+                        x: { 
+                            beginAtZero: true,
+                            ticks: {
+                                callback: (value) => formatIndianCurrency(value)
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Overall Target Progress by Center (stacked horizontal bars as progress bars)
+            const targetProgressCtx = document.getElementById('targetProgressChart').getContext('2d');
+            chartsCache['targetProgressChart'] = new Chart(targetProgressCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Achieved', data: [], backgroundColor: 'rgba(16, 185, 129, 0.9)' },
+                        { label: 'Remaining', data: [], backgroundColor: 'rgba(229, 231, 235, 1)', borderColor: 'rgba(31,41,55,0.2)', borderWidth: 1 }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y', // This makes it a horizontal bar chart
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => {
+                                    const label = context.label || '';
+                                    const isAchieved = context.datasetIndex === 0;
+                                    const store = context.chart.$progressMeta || {};
+                                    const item = store[label] || { collected: 0, target: 0 };
+                                    const percentage = context.parsed.x;
+                                    
+                                    if (isAchieved) {
+                                        return `Achieved: ${percentage.toFixed(1)}% (${formatIndianCurrency(item.collected)} of ${formatIndianCurrency(item.target)})`;
+                                    } else {
+                                        const remainingRs = Math.max(0, item.target - item.collected);
+                                        return `Remaining: ${percentage.toFixed(1)}% (${formatIndianCurrency(remainingRs)} of ${formatIndianCurrency(item.target)})`;
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { // Value axis (percentage)
+                            stacked: true,
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Achievement Percentage'
+                            },
+                            ticks: {
+                                callback: (value) => value + '%'
+                            }
+                        },
+                        y: { // Category axis (center names)
+                            stacked: true,
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Add animation styles for notifications
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+            @keyframes slideOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+        `;
+        document.head.appendChild(style);
+
+        // Date/Center filter change handlers
+        ['startDate', 'endDate', 'center'].forEach(id => {
+            document.getElementById(id).addEventListener('change', function() {
+                showNotification('Updating dashboard...');
+                if (Array.isArray(window.__RAW_ROWS__) && window.__RAW_ROWS__.length) {
+                    updateDashboardFromRows();
+                } else {
+                    fetchDashboardData();
+                }
+            });
+        });
+
+        // Loading overlay
+        (function createLoading() {
+            const overlay = document.createElement('div');
+            overlay.id = 'loadingOverlay';
+            overlay.style.cssText = 'position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.35);z-index:10000;backdrop-filter:blur(2px)';
+            overlay.innerHTML = '<div style="background:#fff;padding:16px 20px;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.2);font-weight:700;display:flex;gap:10px;align-items:center"><span class="loading-spinner"></span> Loading data...</div>';
+            document.addEventListener('DOMContentLoaded', () => document.body.appendChild(overlay));
+        })();
+
+        function showLoading(show) {
+            const el = document.getElementById('loadingOverlay');
+            if (el) el.style.display = show ? 'flex' : 'none';
+        }
+
+        function setRefreshing(isRefreshing) {
+            const btn = document.getElementById('refreshBtn');
+            if (!btn) return;
+            if (isRefreshing) {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="kpi-spinner" style="vertical-align:middle"></span> Refreshing';
+            } else {
+                btn.disabled = false;
+                btn.textContent = 'Refresh';
+            }
+        }
+
+        function logout() {
+            sessionStorage.removeItem('dashboardUser');
+            window.location.href = 'index.html';
+        }
+
+        function showLoadingIndicator(btnId) {
+            const btn = document.getElementById(btnId);
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Loading...';
+            }
+        }
+
+        function hideLoadingIndicator(btnId) {
+            const btn = document.getElementById(btnId);
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Refresh';
+            }
+        }
+    </script>
+</body>
+</html>
