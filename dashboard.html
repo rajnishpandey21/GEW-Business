@@ -847,14 +847,14 @@
             </div>
             <div class="chart-container">
                 <button class="expand-btn" onclick="expandChart('monthlyAdmissionsTargetChart','MoM Target vs Admissions (Count)')">Expand</button>
-                <h4><div class="tooltip-container">MoM Target vs Collected Count <span class="tooltip-icon" data-tooltip="Compares the actual Count of students against the pre-set monthly Enrollment Target.">ℹ️</span></div></h4>
+                <h4><div class="tooltip-container">MoM Admission Target vs Actual Admission Count <span class="tooltip-icon" data-tooltip="Compares the actual Count of students against the pre-set monthly Enrollment Target.">ℹ️</span></div></h4>
                 <div class="chart-canvas">
                     <canvas id="monthlyAdmissionsTargetChart"></canvas>
                 </div>
             </div>
             <div class="chart-container">
                 <button class="expand-btn" onclick="expandChart('monthlyCollectionsTargetChart','MoM Target vs Collected Amount')">Expand</button>
-                <h4><div class="tooltip-container">MoM Target vs Collected Amount <span class="tooltip-icon" data-tooltip="Compares the actual amount collected each month against the pre-set monthly revenue target.">ℹ️</span></div></h4>
+                <h4><div class="tooltip-container">MoM Collection Target vs Actual Collected Amount <span class="tooltip-icon" data-tooltip="Compares the actual amount collected each month against the pre-set monthly revenue target.">ℹ️</span></div></h4>
                 <div class="chart-canvas">
                     <canvas id="monthlyCollectionsTargetChart"></canvas>
                 </div>
@@ -980,64 +980,49 @@ function formatIndianCurrency(num) {
         }
          let allRows = [];
         
-        // Fetch data from API
         async function fetchDashboardData() {
             try {
                 setRefreshing(true);
                 const startDate = document.getElementById('startDate').value;
                 const endDate = document.getElementById('endDate').value;
-                const center = document.getElementById('center').value;
+                // We intentionally do not read the center value here yet, as it might be wrong.
                 
                  console.groupCollapsed('[API] fetchDashboardData');
                  console.log('URL:', apiUrl);
-                 console.log('Selected filters (client-side to be applied later):', { startDate, endDate, center });
                  console.time('[API] fetch time');
  
                  const response = await fetch(apiUrl);
                 const result = await response.json();
                  console.timeEnd('[API] fetch time');
-                 console.log('HTTP ok:', response.ok, 'Status:', response.status);
-                 console.log('Payload meta:', result && result.meta);
                  
                  if (result && result.success) {
-                     // DEBUG: Show detailed API mapping information
-                     if (result.debug) {
-                         console.group('🔍 API DEBUG - Column Mapping');
-                         console.log('✅ Installment Status Column:', result.debug.installmentStatusColumn);
-                         console.log('📍 Column Index:', result.debug.installmentStatusIndex);
-                         console.log('🔍 All Candidates Found:', result.debug.installmentCandidates);
-                         console.log('✅ Chosen Column:', result.debug.chosenColumn);
-                         console.log('📊 Sample Data Keys:', result.debug.sampleDataKeys);
-                         console.groupEnd();
-                     }
-                     // Store raw rows for debugging/next step client-side filtering
                      if (Array.isArray(result.data)) {
                         allRows = result.data;
                         window.__RAW_ROWS__ = allRows;
                         console.log('Rows received:', allRows.length);
-                        // DEBUG: Show sample row structure and validate data
-                        if (allRows.length > 0) {
-                            console.group('🔍 DATA VALIDATION');
-                            console.log('✅ Sample row keys:', Object.keys(allRows[0]));
-                            console.log('✅ Sample Installment_status value:', allRows[0].Installment_status);
-                            
-                            // Check for fully paid students in first 10 rows
-                            let fullyPaidSample = 0;
-                            for (let i = 0; i < Math.min(10, allRows.length); i++) {
-                                if (/fully\s*paid/i.test(String(allRows[i].Installment_status || ''))) {
-                                    fullyPaidSample++;
-                                }
-                            }
-                            console.log('✅ Fully paid students in first 10 rows:', fullyPaidSample);
-                            console.groupEnd();
-                        }
+                        
                         // Populate center dropdown dynamically from data
                         populateCenterDropdown(allRows);
+
+                        // --- START: FIX ---
+                        // Re-apply the center lock if the user is a center user.
+                        // This prevents the dropdown from resetting to "All Centers" after a refresh.
+                        const centerInput = document.getElementById('center');
+                        if (userSession && userSession.role === 'center' && centerInput) {
+                            centerInput.value = userSession.center;
+                            console.log(`Permissions lock re-applied for center: ${userSession.center}`);
+                        }
+                        // --- END: FIX ---
+
                         try {
+                            // Now we can safely get the active filters after the fix has been applied.
+                            const activeFilters = getActiveFilters();
                             sessionStorage.setItem('RAW_ROWS', JSON.stringify(allRows));
-                            sessionStorage.setItem('FILTERS', JSON.stringify({ startDate, endDate, center }));
+                            sessionStorage.setItem('FILTERS', JSON.stringify(activeFilters));
                             sessionStorage.setItem('LAST_FETCH_MS', String(Date.now()));
-                        } catch (e) { console.warn('Failed to persist data to sessionStorage', e); }
+                        } catch (e) { 
+                            console.warn('Failed to persist data to sessionStorage', e); 
+                        }
                      } else {
                          console.warn('Unexpected data shape. Expected array at result.data');
                      }
@@ -1056,7 +1041,7 @@ function formatIndianCurrency(num) {
                  setRefreshing(false);
              }
          }
- 
+
          function updateDashboardFromRows() {
              const filters = getActiveFilters();
              console.groupCollapsed('[DASH] compute from rows');
