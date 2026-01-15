@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(145deg, #66023c 0%, #cd1c18 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+
+        .login-container {
+            background: #ffffff;
+            padding: 40px 50px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+            border: 2px solid #2f2f2f;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .login-container h1 {
+            margin-bottom: 15px;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .login-toggle {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 25px;
+            background-color: #f0f0f0;
+            border-radius: 12px;
+            padding: 5px;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            border-radius: 9px;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-btn.active {
+            background-color: #fff;
+            color: #66023c;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #66023c;
+            box-shadow: 0 0 0 3px rgba(102, 2, 60, 0.1);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            background: linear-gradient(145deg, #66023c, #9e1b26);
+            color: white;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(158, 27, 38, 0.3);
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(158, 27, 38, 0.4);
+        }
+
+        #error-message {
+            color: #d93025;
+            margin-top: 15px;
+            font-weight: 500;
+            min-height: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-container">
+        <h1>Dashboard Access</h1>
+        <div class="login-toggle">
+            <button class="toggle-btn active" id="admin-toggle-btn">Admin Login</button>
+            <button class="toggle-btn" id="center-toggle-btn">Center Login</button>
+        </div>
+
+        <!-- Admin Login Form -->
+        <div id="admin-login-form">
+            <div class="input-group">
+                <label for="admin-username">Username</label>
+                <input type="text" id="admin-username" placeholder="Enter username">
+            </div>
+            <div class="input-group">
+                <label for="admin-password">Password</label>
+                <input type="password" id="admin-password" placeholder="Enter password">
+            </div>
+        </div>
+
+        <!-- Center Login Form -->
+        <div id="center-login-form" class="hidden">
+            <div class="input-group">
+                <label for="center-select">Select Center</label>
+                <select id="center-select">
+                    <!-- Options will be populated by JavaScript -->
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="center-password">Password</label>
+                <input type="password" id="center-password" placeholder="Enter password">
+            </div>
+        </div>
+        
+        <button class="login-btn" onclick="handleLogin()">Login</button>
+        <p id="error-message"></p>
+    </div>
+
+    <script>
+        const credentials = {
+            admin: {
+                username: "admin",
+                password: "adminGEW123"
+            },
+            centers: {
+                "Lucknow Government": "LKN472",
+                "Kolkata Government": "KOL583", 
+                "Patna Government": "PAT369",
+                "Jaipur Government-Gopalpura": "JPR744",
+                "Delhi Government": "DEL812",
+                "Prayagraj Government-Katra": "PRJ638",
+                "Indore Government": "IND951",
+                "Ranchi Government - Lalpur": "RNC207",
+                "Bhopal Government": "BPL533",
+                "Siliguri Government": "SLG498",
+                "Varanasi Government - Durgakund": "VNS861",
+                "Agra Government": "AGR732",
+                "Bhubaneswar Government": "BBS580"
+            }
+        };
+
+        const adminToggleBtn = document.getElementById('admin-toggle-btn');
+        const centerToggleBtn = document.getElementById('center-toggle-btn');
+        const adminForm = document.getElementById('admin-login-form');
+        const centerForm = document.getElementById('center-login-form');
+
+        adminToggleBtn.addEventListener('click', () => {
+            adminToggleBtn.classList.add('active');
+            centerToggleBtn.classList.remove('active');
+            adminForm.classList.remove('hidden');
+            centerForm.classList.add('hidden');
+        });
+
+        centerToggleBtn.addEventListener('click', () => {
+            centerToggleBtn.classList.add('active');
+            adminToggleBtn.classList.remove('active');
+            centerForm.classList.remove('hidden');
+            adminForm.classList.add('hidden');
+        });
+
+        // Populate the center dropdown
+        document.addEventListener('DOMContentLoaded', () => {
+            const centerSelect = document.getElementById('center-select');
+            const centerNames = Object.keys(credentials.centers).sort();
+            centerNames.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                centerSelect.appendChild(option);
+            });
+        });
+        
+        // --- AUTHENTICATION LOGIC ---
+        function handleLogin() {
+            const errorMessage = document.getElementById('error-message');
+            errorMessage.textContent = '';
+            
+            const isAdminLogin = adminToggleBtn.classList.contains('active');
+            
+            if (isAdminLogin) {
+                const username = document.getElementById('admin-username').value;
+                const password = document.getElementById('admin-password').value;
+
+                if (username === credentials.admin.username && password === credentials.admin.password) {
+                    sessionStorage.setItem('dashboardUser', JSON.stringify({ role: 'admin' }));
+                    window.location.href = 'dashboard.html';
+                } else {
+                    errorMessage.textContent = 'Invalid admin username or password.';
+                }
+            } else { // Center Login
+                const selectedCenter = document.getElementById('center-select').value;
+                const password = document.getElementById('center-password').value;
+
+                if (credentials.centers[selectedCenter] && password === credentials.centers[selectedCenter]) {
+                    sessionStorage.setItem('dashboardUser', JSON.stringify({ role: 'center', center: selectedCenter }));
+                    window.location.href = 'dashboard.html';
+                } else {
+                    errorMessage.textContent = 'Invalid password for the selected center.';
+                }
+            }
+        }
+    </script>
+</body>
+</html>
